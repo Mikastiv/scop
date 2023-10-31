@@ -2,9 +2,39 @@ const std = @import("std");
 const glfw = @import("glfw");
 const builtin = @import("builtin");
 const c = @import("c.zig");
+const Shader = @import("shader.zig").Shader;
+
+var window_width: u32 = 800;
+var window_height: u32 = 600;
+var aspect_ratio: f32 = 800.0 / 600.0;
 
 fn errorCallback(error_code: glfw.ErrorCode, description: [:0]const u8) void {
     std.log.err("glfw: {}: {s}\n", .{ error_code, description });
+}
+
+fn framebufferSizeCallback(_: glfw.Window, width: u32, height: u32) void {
+    window_width = width;
+    window_height = height;
+    aspect_ratio = @as(f32, @floatFromInt(width)) / @as(f32, @floatFromInt(height));
+    c.glViewport(0, 0, @intCast(width), @intCast(height));
+}
+
+fn keyboardCallback(window: glfw.Window, key: glfw.Key, scancode: i32, action: glfw.Action, mods: glfw.Mods) void {
+    if (key == glfw.Key.escape and action == glfw.Action.press) window.setShouldClose(true);
+    _ = mods;
+    _ = scancode;
+}
+
+fn mouseCallback(window: glfw.Window, xpos: f64, ypos: f64) void {
+    _ = ypos;
+    _ = xpos;
+    _ = window;
+}
+
+fn scrollCallback(window: glfw.Window, xoffset: f64, yoffset: f64) void {
+    _ = yoffset;
+    _ = xoffset;
+    _ = window;
 }
 
 pub fn main() !u8 {
@@ -40,15 +70,22 @@ pub fn main() !u8 {
         .opengl_forward_compat = if (builtin.os.tag == .macos) true else false,
         .samples = 4,
     };
-    const window = glfw.Window.create(800, 600, "scop", null, null, window_hints) orelse {
+    const window = glfw.Window.create(window_width, window_height, "scop", null, null, window_hints) orelse {
         std.log.err("failed to create GLFW window: {?s}", .{glfw.getErrorString()});
         return 1;
     };
     defer window.destroy();
 
     glfw.makeContextCurrent(window);
+    window.setFramebufferSizeCallback(framebufferSizeCallback);
+    window.setKeyCallback(keyboardCallback);
+    window.setCursorPosCallback(mouseCallback);
+    window.setScrollCallback(scrollCallback);
 
     if (c.gladLoadGLLoader(@ptrCast(&glfw.getProcAddress)) == 0) return 1;
+
+    const s = try Shader.init(allocator, "shaders/pbr.vert", "shaders/pbr.frag");
+    defer s.deinit();
 
     c.glEnable(c.GL_MULTISAMPLE);
     c.glEnable(c.GL_DEPTH_TEST);
