@@ -7,13 +7,27 @@ const Vertex = @import("Vertex.zig");
 const Mesh = @import("Mesh.zig");
 const Material = @import("Material.zig");
 
+const Triangle = struct {
+    vertices: [3]u32,
+    uvs: [3]u32,
+    normals: [3]u32,
+};
+
+const Face = struct {
+    const max_size = 32;
+    vertices: [max_size]u32 = std.mem.zeroes([max_size]u32),
+    uvs: [max_size]u32 = std.mem.zeroes([max_size]u32),
+    normals: [max_size]u32 = std.mem.zeroes([max_size]u32),
+    len: u32 = 0,
+};
+
 const FaceType = enum {
     vertex_only,
     vertex_normal,
     vertex_uv,
     vertex_normal_uv,
 
-    fn from_str(str: []const u8) error{InvalidFaceFormat}!FaceType {
+    fn fromStr(str: []const u8) error{InvalidFaceFormat}!FaceType {
         var it = std.mem.splitScalar(u8, str, '/');
 
         const has_v = it.next() != null;
@@ -48,7 +62,7 @@ const ObjElementType = enum {
     comment,
     unknown,
 
-    fn from_str(str: []const u8) ObjElementType {
+    fn fromStr(str: []const u8) ObjElementType {
         if (std.mem.eql(u8, str, "v")) return .vertex;
         if (std.mem.eql(u8, str, "vt")) return .uv;
         if (std.mem.eql(u8, str, "vn")) return .normal;
@@ -67,7 +81,7 @@ const default_material = Material{
     .name = "default",
 };
 
-fn parse_vec(comptime VecT: type, tokens: std.mem.TokenIterator(u8, .any)) !VecT {
+fn parseVec(comptime VecT: type, tokens: std.mem.TokenIterator(u8, .any)) !VecT {
     var it = tokens;
 
     const len = @typeInfo(VecT).Vector.len;
@@ -84,7 +98,49 @@ fn parse_vec(comptime VecT: type, tokens: std.mem.TokenIterator(u8, .any)) !VecT
     return v;
 }
 
-fn parse_error(comptime msg: []const u8, line_number: u64) error{ParseError} {
+fn parseFace(tokens: std.mem.TokenIterator(u8, .any), face_type: FaceType) !Face {
+    var face = Face{};
+
+    var i = 0;
+    while (i < Face.max_size) : (i += 1) {
+        const token = tokens.next() orelse break;
+        var it = std.mem.tokenizeScalar(u8, token, '/');
+        switch (face_type) {
+            .vertex_only => face.vertices[i] = try std.fmt.parseInt(u32, token, 10) - 1,
+            .vertex_normal => {
+                const v = it.next() orelse return error.ParseError;
+                const n = it.next() orelse return error.ParseError;
+                if (it.next() != null) return error.ParseError;
+
+                face.vertices[i] = try std.fmt.parseInt(u32, v, 10) - 1;
+                face.normals[i] = try std.fmt.parseInt(u32, n, 10) - 1;
+            },
+            .vertex_uv => {
+                const v = it.next() orelse return error.ParseError;
+                const u = it.next() orelse return error.ParseError;
+                if (it.next() != null) return error.ParseError;
+
+                face.vertices[i] = try std.fmt.parseInt(u32, v, 10) - 1;
+                face.uvs[i] = try std.fmt.parseInt(u32, u, 10) - 1;
+            },
+            .vertex_normal_uv => {
+                const v = it.next() orelse return error.ParseError;
+                const u = it.next() orelse return error.ParseError;
+                const n = it.next() orelse return error.ParseError;
+                if (it.next() != null) return error.ParseError;
+
+                face.vertices[i] = try std.fmt.parseInt(u32, v, 10) - 1;
+                face.uvs[i] = try std.fmt.parseInt(u32, u, 10) - 1;
+                face.normals[i] = try std.fmt.parseInt(u32, n, 10) - 1;
+            },
+        }
+    }
+
+    face.len = i;
+    return face;
+}
+
+fn makeError(comptime msg: []const u8, line_number: u64) error{ParseError} {
     std.log.err(msg ++ " (line: {d})", .{line_number});
     return error.ParseError;
 }
@@ -115,29 +171,36 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
         var tokens = std.mem.tokenizeAny(u8, line, &std.ascii.whitespace);
         const token = tokens.next() orelse continue; // Empty line
 
-        const token_type = ObjElementType.from_str(token);
+        const token_type = ObjElementType.fromStr(token);
 
         switch (token_type) {
             .vertex => {
-                const vec = parse_vec(math.Vec3, tokens) catch
-                    return parse_error("error reading vertex", line_number);
+                const vec = parseVec(math.Vec3, tokens) catch
+                    return makeError("error reading vertex", line_number);
                 try vertices.append(vec);
             },
             .uv => {
-                const vec = parse_vec(math.Vec2, tokens) catch
-                    return parse_error("error reading uv", line_number);
+                const vec = parseVec(math.Vec2, tokens) catch
+                    return makeError("error reading uv", line_number);
                 try uvs.append(vec);
             },
             .normal => {
-                const vec = parse_vec(math.Vec3, tokens) catch
-                    return parse_error("error reading normal", line_number);
+                const vec = parseVec(math.Vec3, tokens) catch
+                    return makeError("error reading normal", line_number);
                 try normals.append(vec);
             },
             .face => {
                 const next_token = tokens.peek() orelse
-                    return parse_error("error reading face", line_number);
-                const face_type = try FaceType.from_str(next_token);
-                _ = face_type;
+                    return makeError("error reading face", line_number);
+
+                const face_type = try FaceType.fromStr(next_token);
+                const face = parseFace(tokens, face_type) catch
+                    return makeError("error reading face", line_number);
+                if (face.len < 3 or face.len > 4)
+                    return makeError("unsupported face size", line_number);
+
+                var triangles = std.ArrayList(Triangle).initCapacity(allocator, face.len - 2);
+                _ = triangles;
             },
             .object => current_mesh.name = tokens.rest(),
             .group => {},
