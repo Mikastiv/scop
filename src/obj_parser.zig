@@ -12,6 +12,20 @@ const FaceType = enum {
     vertex_normal,
     vertex_uv,
     vertex_normal_uv,
+
+    fn from_str(str: []const u8) error{InvalidFaceFormat}!FaceType {
+        var it = std.mem.splitScalar(u8, str, '/');
+
+        const has_v = it.next() != null;
+        const has_vt = it.peek() != null and !std.mem.eql(u8, it.next().?, "");
+        const has_vn = it.next() != null;
+
+        if (has_v and has_vt and has_vn) return .vertex_normal_uv;
+        if (has_v and has_vt and !has_vn) return .vertex_uv;
+        if (has_v and !has_vt and has_vn) return .vertex_normal;
+        if (has_v and !has_vt and !has_vn) return .vertex_only;
+        return error.InvalidFaceFormat;
+    }
 };
 
 const ObjVertex = union {
@@ -70,8 +84,9 @@ fn parse_vec(comptime VecT: type, tokens: std.mem.TokenIterator(u8, .any)) !VecT
     return v;
 }
 
-fn print_error(comptime msg: []const u8, line_number: u64) void {
+fn parse_error(comptime msg: []const u8, line_number: u64) error{ParseError} {
     std.log.err(msg ++ " (line: {d})", .{line_number});
+    return error.ParseError;
 }
 
 pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
@@ -104,27 +119,26 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
 
         switch (token_type) {
             .vertex => {
-                const vec = parse_vec(math.Vec3, tokens) catch |err| {
-                    print_error("Error reading vertex", line_number);
-                    return err;
-                };
+                const vec = parse_vec(math.Vec3, tokens) catch
+                    return parse_error("error reading vertex", line_number);
                 try vertices.append(vec);
             },
             .uv => {
-                const vec = parse_vec(math.Vec2, tokens) catch |err| {
-                    print_error("Error reading uv", line_number);
-                    return err;
-                };
+                const vec = parse_vec(math.Vec2, tokens) catch
+                    return parse_error("error reading uv", line_number);
                 try uvs.append(vec);
             },
             .normal => {
-                const vec = parse_vec(math.Vec3, tokens) catch |err| {
-                    print_error("Error reading normal", line_number);
-                    return err;
-                };
+                const vec = parse_vec(math.Vec3, tokens) catch
+                    return parse_error("error reading normal", line_number);
                 try normals.append(vec);
             },
-            .face => {},
+            .face => {
+                const next_token = tokens.peek() orelse
+                    return parse_error("error reading face", line_number);
+                const face_type = try FaceType.from_str(next_token);
+                _ = face_type;
+            },
             .object => current_mesh.name = tokens.rest(),
             .group => {},
             .use_material => {},
