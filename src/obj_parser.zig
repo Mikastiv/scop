@@ -34,17 +34,17 @@ const ObjElementType = enum {
     comment,
     unknown,
 
-    fn get(token: []const u8) ObjElementType {
-        if (std.mem.eql(u8, token, "v")) return .vertex;
-        if (std.mem.eql(u8, token, "vt")) return .uv;
-        if (std.mem.eql(u8, token, "vn")) return .normal;
-        if (std.mem.eql(u8, token, "f")) return .face;
-        if (std.mem.eql(u8, token, "o")) return .object;
-        if (std.mem.eql(u8, token, "g")) return .group;
-        if (std.mem.eql(u8, token, "s")) return .smooth_shading;
-        if (std.mem.eql(u8, token, "mtllib")) return .material_lib;
-        if (std.mem.eql(u8, token, "usemtl")) return .use_material;
-        if (std.mem.eql(u8, token, "#")) return .comment;
+    fn from_str(str: []const u8) ObjElementType {
+        if (std.mem.eql(u8, str, "v")) return .vertex;
+        if (std.mem.eql(u8, str, "vt")) return .uv;
+        if (std.mem.eql(u8, str, "vn")) return .normal;
+        if (std.mem.eql(u8, str, "f")) return .face;
+        if (std.mem.eql(u8, str, "o")) return .object;
+        if (std.mem.eql(u8, str, "g")) return .group;
+        if (std.mem.eql(u8, str, "s")) return .smooth_shading;
+        if (std.mem.eql(u8, str, "mtllib")) return .material_lib;
+        if (std.mem.eql(u8, str, "usemtl")) return .use_material;
+        if (std.mem.eql(u8, str, "#")) return .comment;
         return .unknown;
     }
 };
@@ -52,6 +52,27 @@ const ObjElementType = enum {
 const default_material = Material{
     .name = "default",
 };
+
+fn parse_vec(comptime VecT: type, tokens: std.mem.TokenIterator(u8, .any)) !VecT {
+    var it = tokens;
+
+    const len = @typeInfo(VecT).Vector.len;
+    var v: VecT = switch (len) {
+        2 => math.vec2.init(0, 0),
+        3 => math.vec3.init(0, 0, 0),
+        else => @compileError("Unsupported vector length"),
+    };
+
+    for (0..len) |i| {
+        const token = it.next() orelse return error.NotEnoughVecElements;
+        v[i] = try std.fmt.parseFloat(f32, token);
+    }
+    return v;
+}
+
+fn print_error(comptime msg: []const u8, line_number: u64) void {
+    std.log.err(msg ++ " (line: {d})", .{line_number});
+}
 
 pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
     const file = try std.fs.cwd().openFile(filename, .{});
@@ -76,27 +97,45 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
     while (lines.next()) |line| {
         line_number += 1;
 
-        var tokens = std.mem.tokenizeAny(u8, line, "\r\n");
+        var tokens = std.mem.tokenizeAny(u8, line, &std.ascii.whitespace);
         const token = tokens.next() orelse continue; // Empty line
 
-        const token_type = ObjElementType.get(token);
+        const token_type = ObjElementType.from_str(token);
 
         switch (token_type) {
-            .vertex => {},
-            .uv => {},
-            .normal => {},
+            .vertex => {
+                const vec = parse_vec(math.Vec3, tokens) catch |err| {
+                    print_error("Error reading vertex", line_number);
+                    return err;
+                };
+                try vertices.append(vec);
+            },
+            .uv => {
+                const vec = parse_vec(math.Vec2, tokens) catch |err| {
+                    print_error("Error reading uv", line_number);
+                    return err;
+                };
+                try uvs.append(vec);
+            },
+            .normal => {
+                const vec = parse_vec(math.Vec3, tokens) catch |err| {
+                    print_error("Error reading normal", line_number);
+                    return err;
+                };
+                try normals.append(vec);
+            },
             .face => {},
-            .object => {},
+            .object => current_mesh.name = tokens.rest(),
             .group => {},
             .use_material => {},
             .material_lib => {},
             .smooth_shading => {},
             .comment => {},
-            .unknown => {},
+            .unknown => std.log.warn("unknown token \"{s}\" (line {d})", .{ token, line_number }),
         }
     }
+
     _ = unique_vertices;
-    _ = normals;
-    _ = uvs;
-    _ = vertices;
+
+    return model;
 }

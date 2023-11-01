@@ -7,7 +7,7 @@ allocator: std.mem.Allocator,
 name: []const u8,
 vertices: std.ArrayList(Vertex),
 indices: std.ArrayList(u16),
-material: ?*Material,
+material: ?*const Material,
 
 pub fn init(allocator: std.mem.Allocator) Self {
     return .{

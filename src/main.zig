@@ -4,6 +4,7 @@ const builtin = @import("builtin");
 const c = @import("c.zig");
 const Shader = @import("shader.zig").Shader;
 const math = @import("math.zig");
+const parse = @import("obj_parser.zig");
 
 var window_width: u32 = 800;
 var window_height: u32 = 600;
@@ -88,9 +89,8 @@ pub fn main() !u8 {
     const s = try Shader.init(allocator, "shaders/pbr.vert", "shaders/pbr.frag");
     defer s.deinit();
 
-    const t = math.vec2.init(1, 3);
-    std.debug.print("{d}\n", .{@sizeOf(math.Vec2)});
-    _ = t;
+    const model = try parse.parseObj(allocator, args[1]);
+    _ = model;
 
     c.glEnable(c.GL_MULTISAMPLE);
     c.glEnable(c.GL_DEPTH_TEST);
