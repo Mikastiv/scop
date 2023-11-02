@@ -272,7 +272,7 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
                     var vt1: Vec2 = undefined;
                     var vt2: Vec2 = undefined;
                     var vt3: Vec2 = undefined;
-                    if (face_type == .vertex_uv or face_type == .vertex_normal_uv) {
+                    if (containsUVs(face_type)) {
                         vt1 = uvs.items[vt_idx1];
                         vt2 = uvs.items[vt_idx2];
                         vt3 = uvs.items[vt_idx3];
@@ -286,7 +286,7 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
                     var vn1: Vec3 = undefined;
                     var vn2: Vec3 = undefined;
                     var vn3: Vec3 = undefined;
-                    if (face_type == .vertex_uv or face_type == .vertex_normal_uv) {
+                    if (containsNormals(face_type)) {
                         vn1 = normals.items[0];
                         vn2 = normals.items[1];
                         vn3 = normals.items[2];
