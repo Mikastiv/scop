@@ -1,5 +1,7 @@
 const std = @import("std");
 const math = @import("math.zig");
+const vec2 = math.vec2;
+const vec3 = math.vec3;
 const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
 const Model = @import("Model.zig");
@@ -42,11 +44,11 @@ const FaceType = enum {
     }
 };
 
-const ObjVertex = union {
-    vertex_only: struct { vertex: u32 },
-    vertex_normal: struct { vertex: u32, normal: u32 },
-    vertex_uv: struct { vertex: u32, uv: u32 },
-    vertex_normal_uv: struct { vertex: u32, normal: u32, uv: u32 },
+const ObjVertex = struct {
+    face_type: FaceType,
+    vertex: u32,
+    normal: u32,
+    uv: u32,
 };
 
 const ObjElementType = enum {
@@ -77,17 +79,13 @@ const ObjElementType = enum {
     }
 };
 
-const default_material = Material{
-    .name = "default",
-};
-
 fn parseVec(comptime VecT: type, tokens: std.mem.TokenIterator(u8, .any)) !VecT {
     var it = tokens;
 
     const len = @typeInfo(VecT).Vector.len;
     var v: VecT = switch (len) {
-        2 => math.vec2.init(0, 0),
-        3 => math.vec3.init(0, 0, 0),
+        2 => .{ 0, 0 },
+        3 => .{ 0, 0, 0 },
         else => @compileError("Unsupported vector length"),
     };
 
@@ -98,12 +96,21 @@ fn parseVec(comptime VecT: type, tokens: std.mem.TokenIterator(u8, .any)) !VecT 
     return v;
 }
 
+fn containsNormals(face_type: FaceType) bool {
+    return face_type == .vertex_normal or face_type == .vertex_normal_uv;
+}
+
+fn containsUVs(face_type: FaceType) bool {
+    return face_type == .vertex_uv or face_type == .vertex_normal_uv;
+}
+
 fn parseFace(tokens: std.mem.TokenIterator(u8, .any), face_type: FaceType) !Face {
+    var tokens_it = tokens;
     var face = Face{};
 
-    var i = 0;
+    var i: u32 = 0;
     while (i < Face.max_size) : (i += 1) {
-        const token = tokens.next() orelse break;
+        const token = tokens_it.next() orelse break;
         var it = std.mem.tokenizeScalar(u8, token, '/');
         switch (face_type) {
             .vertex_only => face.vertices[i] = try std.fmt.parseInt(u32, token, 10) - 1,
@@ -140,6 +147,35 @@ fn parseFace(tokens: std.mem.TokenIterator(u8, .any), face_type: FaceType) !Face
     return face;
 }
 
+fn faceToTriangles(allocator: std.mem.Allocator, face: Face) !std.ArrayList(Triangle) {
+    var triangles = try std.ArrayList(Triangle).initCapacity(allocator, face.len - 2);
+
+    if (face.len == 3) {
+        const tri = Triangle{
+            .vertices = .{ face.vertices[0], face.vertices[1], face.vertices[2] },
+            .uvs = .{ face.uvs[0], face.uvs[1], face.uvs[2] },
+            .normals = .{ face.normals[0], face.normals[1], face.normals[2] },
+        };
+        try triangles.append(tri);
+    } else {
+        const tri1 = Triangle{
+            .vertices = .{ face.vertices[0], face.vertices[1], face.vertices[3] },
+            .uvs = .{ face.uvs[0], face.uvs[1], face.uvs[3] },
+            .normals = .{ face.normals[0], face.normals[1], face.normals[3] },
+        };
+        const tri2 = Triangle{
+            .vertices = .{ face.vertices[3], face.vertices[1], face.vertices[2] },
+            .uvs = .{ face.uvs[3], face.uvs[1], face.uvs[2] },
+            .normals = .{ face.normals[3], face.normals[1], face.normals[2] },
+        };
+
+        try triangles.append(tri1);
+        try triangles.append(tri2);
+    }
+
+    return triangles;
+}
+
 fn makeError(comptime msg: []const u8, line_number: u64) error{ParseError} {
     std.log.err(msg ++ " (line: {d})", .{line_number});
     return error.ParseError;
@@ -155,15 +191,14 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
     var normals = std.ArrayList(Vec3).init(allocator);
     var uvs = std.ArrayList(Vec2).init(allocator);
 
-    var unique_vertices = std.AutoHashMap(ObjVertex, u64).init(allocator);
+    var unique_vertices = std.AutoHashMap(ObjVertex, u16).init(allocator);
 
     var model = Model.init(allocator);
     try model.meshes.append(Mesh.init(allocator));
 
     const current_mesh = &model.meshes.items[0];
-    current_mesh.material = &default_material;
 
-    var lines = std.mem.splitAny(u8, file_content, "\r\n");
+    var lines = std.mem.splitScalar(u8, file_content, '\n');
     var line_number: u64 = 0;
     while (lines.next()) |line| {
         line_number += 1;
@@ -175,32 +210,137 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
 
         switch (token_type) {
             .vertex => {
-                const vec = parseVec(math.Vec3, tokens) catch
-                    return makeError("error reading vertex", line_number);
+                const vec = parseVec(Vec3, tokens) catch return makeError("error reading vertex", line_number);
                 try vertices.append(vec);
             },
             .uv => {
-                const vec = parseVec(math.Vec2, tokens) catch
-                    return makeError("error reading uv", line_number);
+                const vec = parseVec(Vec2, tokens) catch return makeError("error reading uv", line_number);
                 try uvs.append(vec);
             },
             .normal => {
-                const vec = parseVec(math.Vec3, tokens) catch
-                    return makeError("error reading normal", line_number);
+                const vec = parseVec(Vec3, tokens) catch return makeError("error reading normal", line_number);
                 try normals.append(vec);
             },
             .face => {
-                const next_token = tokens.peek() orelse
-                    return makeError("error reading face", line_number);
+                const next_token = tokens.peek() orelse return makeError("error reading face", line_number);
 
                 const face_type = try FaceType.fromStr(next_token);
-                const face = parseFace(tokens, face_type) catch
-                    return makeError("error reading face", line_number);
-                if (face.len < 3 or face.len > 4)
-                    return makeError("unsupported face size", line_number);
+                const face = parseFace(tokens, face_type) catch return makeError("error reading face", line_number);
+                if (face.len < 3 or face.len > 4) return makeError("unsupported face size", line_number);
 
-                var triangles = std.ArrayList(Triangle).initCapacity(allocator, face.len - 2);
-                _ = triangles;
+                const triangles = try faceToTriangles(allocator, face);
+                for (triangles.items) |tri| {
+                    // vertex indices
+                    const v_idx1 = tri.vertices[0];
+                    const v_idx2 = tri.vertices[1];
+                    const v_idx3 = tri.vertices[2];
+                    const v_size = vertices.items.len;
+
+                    // uv indices
+                    const vt_idx1 = tri.uvs[0];
+                    const vt_idx2 = tri.uvs[1];
+                    const vt_idx3 = tri.uvs[2];
+                    const vt_size = uvs.items.len;
+
+                    // normal indices
+                    const vn_idx1 = tri.normals[0];
+                    const vn_idx2 = tri.normals[1];
+                    const vn_idx3 = tri.normals[2];
+                    const vn_size = normals.items.len;
+
+                    if (v_idx1 >= v_size or v_idx2 >= v_size or v_idx3 >= v_size)
+                        return makeError("invalid vertex index", line_number);
+                    if (containsUVs(face_type) and (vt_idx1 >= vt_size or vt_idx2 >= vt_size or vt_idx3 >= vt_size))
+                        return makeError("invalid uv index", line_number);
+                    if (containsNormals(face_type) and (vn_idx1 >= vn_size or vn_idx2 >= vn_size or vn_idx3 >= vn_size))
+                        return makeError("invalid normal index", line_number);
+
+                    const obj_v1 = ObjVertex{ .face_type = face_type, .vertex = v_idx1, .uv = vt_idx1, .normal = vn_idx1 };
+                    const obj_v2 = ObjVertex{ .face_type = face_type, .vertex = v_idx2, .uv = vt_idx2, .normal = vn_idx2 };
+                    const obj_v3 = ObjVertex{ .face_type = face_type, .vertex = v_idx3, .uv = vt_idx3, .normal = vn_idx3 };
+
+                    const idx_1 = unique_vertices.get(obj_v1);
+                    const idx_2 = unique_vertices.get(obj_v2);
+                    const idx_3 = unique_vertices.get(obj_v3);
+
+                    // vertices
+                    const v1 = vertices.items[v_idx1];
+                    const v2 = vertices.items[v_idx2];
+                    const v3 = vertices.items[v_idx3];
+
+                    // uvs
+                    var vt1: Vec2 = undefined;
+                    var vt2: Vec2 = undefined;
+                    var vt3: Vec2 = undefined;
+                    if (face_type == .vertex_uv or face_type == .vertex_normal_uv) {
+                        vt1 = uvs.items[vt_idx1];
+                        vt2 = uvs.items[vt_idx2];
+                        vt3 = uvs.items[vt_idx3];
+                    } else {
+                        vt1 = .{ v1[2], v1[1] };
+                        vt2 = .{ v2[2], v2[1] };
+                        vt3 = .{ v3[2], v3[1] };
+                    }
+
+                    // normals
+                    var vn1: Vec3 = undefined;
+                    var vn2: Vec3 = undefined;
+                    var vn3: Vec3 = undefined;
+                    if (face_type == .vertex_uv or face_type == .vertex_normal_uv) {
+                        vn1 = normals.items[0];
+                        vn2 = normals.items[1];
+                        vn3 = normals.items[2];
+                    } else {
+                        const n = vec3.normalize(vec3.cross(v2 - v1, v3 - v1));
+                        vn1 = n;
+                        vn2 = n;
+                        vn3 = n;
+                    }
+
+                    // tangent & bitangent
+                    const edge1 = v2 - v1;
+                    const edge2 = v3 - v1;
+                    const delta_uv1 = vt2 - vt1;
+                    const delta_uv2 = vt3 - vt1;
+                    const f = 1.0 / (delta_uv1[0] * delta_uv2[1] - delta_uv2[0] * delta_uv1[1]);
+
+                    const tangent = Vec3{
+                        f * (delta_uv2[1] * edge1[0] - delta_uv1[1] * edge2[0]),
+                        f * (delta_uv2[1] * edge1[1] - delta_uv1[1] * edge2[1]),
+                        f * (delta_uv2[1] * edge1[2] - delta_uv1[1] * edge2[2]),
+                    };
+                    const bitangent = Vec3{
+                        f * (-delta_uv2[1] * edge1[0] + delta_uv1[1] * edge2[0]),
+                        f * (-delta_uv2[1] * edge1[1] + delta_uv1[1] * edge2[1]),
+                        f * (-delta_uv2[1] * edge1[2] + delta_uv1[1] * edge2[2]),
+                    };
+
+                    const vertex1 = Vertex{ .pos = v1, .normal = vn1, .uv = vt1, .tangent = tangent, .bitangent = bitangent };
+                    const vertex2 = Vertex{ .pos = v2, .normal = vn2, .uv = vt2, .tangent = tangent, .bitangent = bitangent };
+                    const vertex3 = Vertex{ .pos = v3, .normal = vn3, .uv = vt3, .tangent = tangent, .bitangent = bitangent };
+
+                    if (idx_1) |idx| {
+                        try current_mesh.indices.append(idx);
+                    } else {
+                        const idx = current_mesh.vertices.items.len;
+                        try current_mesh.vertices.append(vertex1);
+                        try unique_vertices.putNoClobber(obj_v1, @truncate(idx));
+                    }
+                    if (idx_2) |idx| {
+                        try current_mesh.indices.append(idx);
+                    } else {
+                        const idx = current_mesh.vertices.items.len;
+                        try current_mesh.vertices.append(vertex2);
+                        try unique_vertices.putNoClobber(obj_v2, @truncate(idx));
+                    }
+                    if (idx_3) |idx| {
+                        try current_mesh.indices.append(idx);
+                    } else {
+                        const idx = current_mesh.vertices.items.len;
+                        try current_mesh.vertices.append(vertex3);
+                        try unique_vertices.putNoClobber(obj_v3, @truncate(idx));
+                    }
+                }
             },
             .object => current_mesh.name = tokens.rest(),
             .group => {},
@@ -211,8 +351,6 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
             .unknown => std.log.warn("unknown token \"{s}\" (line {d})", .{ token, line_number }),
         }
     }
-
-    _ = unique_vertices;
 
     return model;
 }

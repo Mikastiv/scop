@@ -7,7 +7,11 @@ allocator: std.mem.Allocator,
 name: []const u8,
 vertices: std.ArrayList(Vertex),
 indices: std.ArrayList(u16),
-material: ?*const Material,
+material: *const Material,
+
+const default_material = Material{
+    .name = "default",
+};
 
 pub fn init(allocator: std.mem.Allocator) Self {
     return .{
@@ -15,6 +19,6 @@ pub fn init(allocator: std.mem.Allocator) Self {
         .name = "",
         .vertices = std.ArrayList(Vertex).init(allocator),
         .indices = std.ArrayList(u16).init(allocator),
-        .material = null,
+        .material = &default_material,
     };
 }
