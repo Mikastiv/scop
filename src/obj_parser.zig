@@ -176,20 +176,23 @@ fn faceToTriangles(allocator: std.mem.Allocator, face: Face) !std.ArrayList(Tria
     return triangles;
 }
 
-fn makeError(comptime msg: []const u8, line_number: u64) error{ParseError} {
+fn makeError(comptime msg: []const u8, line_number: u32) error{ParseError} {
     std.log.err(msg ++ " (line: {d})", .{line_number});
     return error.ParseError;
 }
 
 pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
     const file = try std.fs.cwd().openFile(filename, .{});
+    const dirname = std.fs.path.dirname(filename) orelse ".";
     const file_content = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
-    const dirname = std.fs.path.dirname(filename);
-    _ = dirname;
+    defer allocator.free(file_content);
 
     var vertices = std.ArrayList(Vec3).init(allocator);
+    defer vertices.deinit();
     var normals = std.ArrayList(Vec3).init(allocator);
+    defer vertices.deinit();
     var uvs = std.ArrayList(Vec2).init(allocator);
+    defer uvs.deinit();
 
     var unique_vertices = std.AutoHashMap(ObjVertex, u16).init(allocator);
 
@@ -199,7 +202,7 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
     const current_mesh = &model.meshes.items[0];
 
     var lines = std.mem.splitScalar(u8, file_content, '\n');
-    var line_number: u64 = 0;
+    var line_number: u32 = 0;
     while (lines.next()) |line| {
         line_number += 1;
 
@@ -207,7 +210,6 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
         const token = tokens.next() orelse continue; // Empty line
 
         const token_type = ObjElementType.fromStr(token);
-
         switch (token_type) {
             .vertex => {
                 const vec = parseVec(Vec3, tokens) catch return makeError("error reading vertex", line_number);
@@ -342,10 +344,14 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
                     }
                 }
             },
-            .object => current_mesh.name = tokens.rest(),
+            .object => current_mesh.name = std.mem.trim(u8, tokens.rest(), &std.ascii.whitespace),
             .group => {},
             .use_material => {},
-            .material_lib => {},
+            .material_lib => {
+                const mtl_filename = std.mem.trim(u8, tokens.rest(), &std.ascii.whitespace);
+                const new_materials = try loadMaterials(allocator, dirname, mtl_filename);
+                try model.materials.appendSlice(new_materials);
+            },
             .smooth_shading => {},
             .comment => {},
             .unknown => std.log.warn("unknown token \"{s}\" (line {d})", .{ token, line_number }),
@@ -353,4 +359,64 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
     }
 
     return model;
+}
+
+const MaterialElementType = enum {
+    new_material,
+    ambient_color,
+    diffuse_color,
+    specular_color,
+    comment,
+    unknown,
+
+    fn fromStr(str: []const u8) MaterialElementType {
+        if (std.mem.eql(u8, str, "newmtl")) return .new_material;
+        if (std.mem.eql(u8, str, "Ka")) return .ambient_color;
+        if (std.mem.eql(u8, str, "Kd")) return .diffuse_color;
+        if (std.mem.eql(u8, str, "Ks")) return .specular_color;
+        if (std.mem.eql(u8, str, "#")) return .comment;
+        return .unknown;
+    }
+};
+
+fn loadMaterials(allocator: std.mem.Allocator, dirname: []const u8, filename: []const u8) ![]Material {
+    const filepath = try std.mem.join(allocator, "/", &.{ dirname, filename });
+    const file = try std.fs.cwd().openFile(filepath, .{});
+    const file_content = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+
+    var materials = std.ArrayList(Material).init(allocator);
+
+    var current_material: ?*Material = null;
+
+    var lines = std.mem.splitScalar(u8, file_content, '\n');
+    var line_number: u32 = 0;
+    while (lines.next()) |line| {
+        line_number += 1;
+
+        var tokens = std.mem.tokenizeAny(u8, line, &std.ascii.whitespace);
+        const token = tokens.next() orelse continue; // Empty line
+
+        const token_type = MaterialElementType.fromStr(token);
+
+        if (current_material == null and token_type != .new_material and token_type != .comment)
+            return makeError("material defined without a name", line_number);
+
+        switch (token_type) {
+            .new_material => {
+                try materials.append(Material{});
+                current_material = &materials.items[0];
+                current_material.?.name = std.mem.trim(u8, tokens.rest(), &std.ascii.whitespace);
+            },
+            .ambient_color => current_material.?.ambient = parseVec(Vec3, tokens) catch
+                return makeError("error reading ambient color", line_number),
+            .diffuse_color => current_material.?.diffuse = parseVec(Vec3, tokens) catch
+                return makeError("error reading diffuse color", line_number),
+            .specular_color => current_material.?.specular = parseVec(Vec3, tokens) catch
+                return makeError("error reading specular color", line_number),
+            .comment => {},
+            .unknown => std.log.warn("unknown token \"{s}\" (line {d})", .{ token, line_number }),
+        }
+    }
+
+    return materials.toOwnedSlice();
 }
