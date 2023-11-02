@@ -14,3 +14,11 @@ pub fn init(allocator: std.mem.Allocator) Self {
         .materials = std.ArrayList(Material).init(allocator),
     };
 }
+
+pub fn deinit(self: *Self) void {
+    for (self.meshes.items) |*mesh| {
+        mesh.deinit();
+    }
+    self.meshes.deinit();
+    self.materials.deinit();
+}

@@ -22,3 +22,8 @@ pub fn init(allocator: std.mem.Allocator) Self {
         .material = &default_material,
     };
 }
+
+pub fn deinit(self: *Self) void {
+    self.vertices.deinit();
+    self.indices.deinit();
+}

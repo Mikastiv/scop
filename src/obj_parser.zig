@@ -195,9 +195,11 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
     defer uvs.deinit();
 
     var unique_vertices = std.AutoHashMap(ObjVertex, u16).init(allocator);
+    defer unique_vertices.deinit();
 
     var model = Model.init(allocator);
     try model.meshes.append(Mesh.init(allocator));
+    errdefer model.deinit();
 
     const current_mesh = &model.meshes.items[0];
 
@@ -381,8 +383,10 @@ const MaterialElementType = enum {
 
 fn loadMaterials(allocator: std.mem.Allocator, dirname: []const u8, filename: []const u8) ![]Material {
     const filepath = try std.mem.join(allocator, "/", &.{ dirname, filename });
+    defer allocator.free(filepath);
     const file = try std.fs.cwd().openFile(filepath, .{});
     const file_content = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    defer allocator.free(file_content);
 
     var materials = std.ArrayList(Material).init(allocator);
 
