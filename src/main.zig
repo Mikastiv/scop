@@ -89,8 +89,8 @@ pub fn main() !u8 {
     const s = try Shader.init(allocator, "shaders/pbr.vert", "shaders/pbr.frag");
     defer s.deinit();
 
-    const model = try parse.parseObj(allocator, args[1]);
-    _ = model;
+    var model = try parse.parseObj(allocator, args[1]);
+    model.loadOnGpu();
 
     c.glEnable(c.GL_MULTISAMPLE);
     c.glEnable(c.GL_DEPTH_TEST);

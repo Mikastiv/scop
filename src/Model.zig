@@ -22,3 +22,9 @@ pub fn deinit(self: *Self) void {
     self.meshes.deinit();
     self.materials.deinit();
 }
+
+pub fn loadOnGpu(self: *Self) void {
+    for (self.meshes.items) |*mesh| {
+        mesh.loadOnGpu();
+    }
+}
