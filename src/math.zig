@@ -265,4 +265,51 @@ pub const mat = struct {
             else => unsupportedType(@TypeOf(a)),
         };
     }
+
+    pub inline fn scaling(s: Vec3) Mat4 {
+        return .{
+            .{ s[0], 0, 0, 0 },
+            .{ 0, s[1], 0, 0 },
+            .{ 0, 0, s[2], 0 },
+            .{ 0, 0, 0, 1 },
+        };
+    }
+
+    pub inline fn scalingScalar(s: f32) Mat4 {
+        return scaling(.{ s, s, s });
+    }
+
+    pub inline fn translation(t: Vec3) Mat4 {
+        return .{
+            .{ 1, 0, 0, t[0] },
+            .{ 0, 1, 0, t[1] },
+            .{ 0, 0, 1, t[2] },
+            .{ 0, 0, 0, 1 },
+        };
+    }
+
+    pub inline fn rotation(angle: f32, axis: Vec3) Mat4 {
+        const s = @sin(angle);
+        const c = @cos(angle);
+        const a = vec.unit(axis);
+        const t = vec.mul(a, 1 - c);
+
+        return .{
+            .{ c + t[0] * a[0], t[0] * a[1] + s * a[2], t[0] * a[2] - s * a[1], 0 },
+            .{ t[1] * a[0] - s * a[2], c + t[1] * a[1], t[1] * a[2] + s * a[0], 0 },
+            .{ t[2] * a[0] + s * a[1], t[2] * a[1] - s * a[0], c + t[2] * a[2], 0 },
+            .{ 0, 0, 0, 1 },
+        };
+    }
+
+    pub inline fn perspective(fovy: f32, aspect: f32, near: f32, far: f32) Mat4 {
+        const tan_half_fov = @tan(fovy / 2);
+
+        return .{
+            .{ 1 / (aspect * tan_half_fov), 0, 0, 0 },
+            .{ 0, 1 / tan_half_fov, 0, 0 },
+            .{ 0, 0, -(far + near) / (far - near), -1 },
+            .{ 0, 0, (-2 * far * near) / (far - near), 0 },
+        };
+    }
 };
