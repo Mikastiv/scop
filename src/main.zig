@@ -4,7 +4,7 @@ const builtin = @import("builtin");
 const c = @import("c.zig");
 const Shader = @import("shader.zig").Shader;
 const math = @import("math.zig");
-const parse = @import("obj_parser.zig");
+const obj = @import("obj.zig");
 
 var window_width: u32 = 800;
 var window_height: u32 = 600;
@@ -39,32 +39,23 @@ fn scrollCallback(window: glfw.Window, xoffset: f64, yoffset: f64) void {
     _ = window;
 }
 
-pub fn main() !u8 {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
+fn validateArgs(args: []const []const u8) !bool {
     const stderr = std.io.getStdErr().writer();
 
-    const args = try std.process.argsAlloc(allocator);
     if (args.len != 2) {
-        try std.fmt.format(stderr, "usage: {s} <obj_file>\n", .{args[0]});
-        return 1;
+        try stderr.print("usage: {s} <obj_file>\n", .{args[0]});
+        return false;
     }
 
     if (!std.mem.endsWith(u8, args[1], ".obj")) {
         std.log.err("only supports wavefront OBJ files (.obj)\n", .{});
-        return 1;
+        return false;
     }
 
-    if (!glfw.init(.{})) {
-        std.log.err("failed to initialize GLFW: {?s}", .{glfw.getErrorString()});
-        return 1;
-    }
-    defer glfw.terminate();
+    return true;
+}
 
-    glfw.setErrorCallback(errorCallback);
-
+fn createWindow() !glfw.Window {
     const window_hints = glfw.Window.Hints{
         .context_version_major = 4,
         .context_version_minor = 1,
@@ -74,9 +65,8 @@ pub fn main() !u8 {
     };
     const window = glfw.Window.create(window_width, window_height, "scop", null, null, window_hints) orelse {
         std.log.err("failed to create GLFW window: {?s}", .{glfw.getErrorString()});
-        return 1;
+        return error.GlfwWindowCreationFailed;
     };
-    defer window.destroy();
 
     glfw.makeContextCurrent(window);
     window.setFramebufferSizeCallback(framebufferSizeCallback);
@@ -84,12 +74,37 @@ pub fn main() !u8 {
     window.setCursorPosCallback(mouseCallback);
     window.setScrollCallback(scrollCallback);
 
-    if (c.gladLoadGLLoader(@ptrCast(&glfw.getProcAddress)) == 0) return 1;
+    if (c.gladLoadGLLoader(@ptrCast(&glfw.getProcAddress)) == 0) return error.GLLoaderFailed;
+
+    return window;
+}
+
+pub fn main() !u8 {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
+
+    const args = try std.process.argsAlloc(allocator);
+    defer allocator.free(args);
+
+    if (!try validateArgs(args)) return 1;
+
+    if (!glfw.init(.{})) {
+        std.log.err("failed to initialize GLFW: {?s}", .{glfw.getErrorString()});
+        return error.GlfwInitFailed;
+    }
+    defer glfw.terminate();
+
+    glfw.setErrorCallback(errorCallback);
+
+    const window = try createWindow();
+    defer window.destroy();
 
     const s = try Shader.init(allocator, "shaders/pbr.vert", "shaders/pbr.frag");
     defer s.deinit();
 
-    var model = try parse.parseObj(allocator, args[1]);
+    var model = try obj.parseObj(allocator, args[1]);
     model.loadOnGpu();
 
     c.glEnable(c.GL_MULTISAMPLE);
