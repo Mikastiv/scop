@@ -2,7 +2,7 @@ const std = @import("std");
 const glfw = @import("glfw");
 const builtin = @import("builtin");
 const c = @import("c.zig");
-const Shader = @import("shader.zig").Shader;
+const Shader = @import("shader.zig");
 const math = @import("math.zig");
 const obj = @import("obj.zig");
 
@@ -101,8 +101,8 @@ pub fn main() !u8 {
     const window = try createWindow();
     defer window.destroy();
 
-    const s = try Shader.init(allocator, "shaders/pbr.vert", "shaders/pbr.frag");
-    defer s.deinit();
+    const shader_pbr = try Shader.init(allocator, "shaders/pbr.vert", "shaders/pbr.frag");
+    defer shader_pbr.deinit();
 
     var model = try obj.parseObj(allocator, args[1]);
     model.loadOnGpu();
@@ -112,12 +112,47 @@ pub fn main() !u8 {
     c.glEnable(c.GL_STENCIL_TEST);
     c.glEnable(c.GL_CULL_FACE);
 
+    const triangle = [_]math.Vec3{
+        .{ -0.5, -0.5, 0.0 },
+        .{ 0.5, -0.5, 0.0 },
+        .{ 0.0, 0.5, 0.0 },
+    };
+    var vao: u32 = undefined;
+    var vbo: u32 = undefined;
+    c.glGenVertexArrays(1, @ptrCast(&vao));
+    c.glBindVertexArray(vao);
+    c.glGenBuffers(1, @ptrCast(&vbo));
+    c.glBindBuffer(c.GL_ARRAY_BUFFER, vbo);
+    c.glBufferData(
+        c.GL_ARRAY_BUFFER,
+        @intCast(@sizeOf(math.Vec3) * 3),
+        &triangle,
+        c.GL_STATIC_DRAW,
+    );
+    c.glEnableVertexAttribArray(0);
+    c.glVertexAttribPointer(0, 3, c.GL_FLOAT, c.GL_FALSE, @sizeOf(math.Vec3), @ptrFromInt(0));
+    c.glBindVertexArray(0);
+
+    var last_frame = glfw.getTime();
     while (!window.shouldClose()) {
+        const now = glfw.getTime();
+        const delta_time = now - last_frame;
+        _ = delta_time;
+        last_frame = glfw.getTime();
+
         c.glClearColor(0.1, 0.1, 0.1, 1.0);
         c.glClear(c.GL_COLOR_BUFFER_BIT | c.GL_DEPTH_BUFFER_BIT | c.GL_STENCIL_BUFFER_BIT);
         c.glStencilOp(c.GL_KEEP, c.GL_KEEP, c.GL_REPLACE);
         c.glStencilFunc(c.GL_ALWAYS, 1, 0xFF);
         c.glStencilMask(0xFF);
+
+        shader_pbr.use();
+        shader_pbr.setUniform(f32, "pixel_color1", 1.0);
+        shader_pbr.setUniform(f32, "pixel_color2", 0.0);
+        shader_pbr.setUniform(f32, "pixel_color3", 0.0);
+        c.glBindVertexArray(vao);
+        c.glDrawArrays(c.GL_TRIANGLES, 0, 3);
+        c.glBindVertexArray(0);
 
         window.swapBuffers();
         glfw.pollEvents();

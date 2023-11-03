@@ -46,7 +46,7 @@ pub fn loadOnGpu(self: *Self) void {
     c.glBindBuffer(c.GL_ARRAY_BUFFER, self.vbo);
     c.glBufferData(
         c.GL_ARRAY_BUFFER,
-        @sizeOf(Vertex) * @as(c.GLsizeiptr, @intCast(self.vertices.items.len)),
+        @intCast(@sizeOf(Vertex) * self.vertices.items.len),
         self.vertices.items.ptr,
         c.GL_STATIC_DRAW,
     );
@@ -55,7 +55,7 @@ pub fn loadOnGpu(self: *Self) void {
     c.glBindBuffer(c.GL_ELEMENT_ARRAY_BUFFER, self.ebo);
     c.glBufferData(
         c.GL_ELEMENT_ARRAY_BUFFER,
-        @sizeOf(u16) * @as(c.GLsizeiptr, @intCast(self.indices.items.len)),
+        @intCast(@sizeOf(u16) * self.indices.items.len),
         self.indices.items.ptr,
         c.GL_STATIC_DRAW,
     );
@@ -72,5 +72,11 @@ pub fn loadOnGpu(self: *Self) void {
     c.glVertexAttribPointer(4, 3, c.GL_FLOAT, c.GL_FALSE, @sizeOf(Vertex), @ptrFromInt(@offsetOf(Vertex, "bitangent")));
 
     c.glBindBuffer(c.GL_ARRAY_BUFFER, 0);
+    c.glBindVertexArray(0);
+}
+
+pub fn draw(self: *const Self) void {
+    c.glBindVertexArray(self.vao);
+    c.glDrawElements(c.GL_TRIANGLES, @intCast(self.indices.items.len), c.GL_UNSIGNED_SHORT, null);
     c.glBindVertexArray(0);
 }
