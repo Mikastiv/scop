@@ -135,7 +135,17 @@ pub fn main() !u8 {
     c.glBindVertexArray(0);
 
     var model = math.mat.identity(math.Mat4);
-    model = math.mat.mul(model, math.mat.rotation(std.math.degreesToRadians(f32, 90), .{ 0, 0, 1 }));
+    model = math.mat.mul(
+        model,
+        math.mat.rotation(std.math.degreesToRadians(f32, 90), .{ 0, 0, 1 }),
+    );
+    var view = math.mat.lookAt(.{ 0, 0, 2 }, .{ 0, 0, 0 }, .{ 0, 1, 0 });
+    var projection = math.mat.perspective(
+        std.math.degreesToRadians(f32, 60),
+        aspect_ratio,
+        0.1,
+        100.0,
+    );
 
     var last_frame = glfw.getTime();
     while (!window.shouldClose()) {
@@ -152,6 +162,8 @@ pub fn main() !u8 {
 
         shader_pbr.use();
         shader_pbr.setUniform(math.Mat4, "model", model);
+        shader_pbr.setUniform(math.Mat4, "view", view);
+        shader_pbr.setUniform(math.Mat4, "projection", projection);
         c.glBindVertexArray(vao);
         c.glDrawArrays(c.GL_TRIANGLES, 0, 3);
         c.glBindVertexArray(0);

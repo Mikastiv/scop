@@ -292,7 +292,7 @@ pub const mat = struct {
         const s = @sin(angle);
         const c = @cos(angle);
         const a = vec.unit(axis);
-        const t = vec.mul(a, 1 - c);
+        const t = vec.mul(a, 1.0 - c);
 
         return .{
             .{ c + t[0] * a[0], t[0] * a[1] + s * a[2], t[0] * a[2] - s * a[1], 0 },
@@ -314,5 +314,21 @@ pub const mat = struct {
             .{ 0.0, 0.0, -(far + near) / r, -1.0 },
             .{ 0.0, 0.0, -2.0 * far * near / r, 0.0 },
         };
+    }
+
+    pub inline fn lookAt(eye: Vec3, target: Vec3, up: Vec3) Mat4 {
+        const zaxis = vec.normalize(vec.sub(target, eye));
+        const xaxis = vec.normalize(vec.cross(up, zaxis));
+        const yaxis = vec.cross(zaxis, xaxis);
+
+        const t = translation(vec.neg(eye));
+        const r = Mat4{
+            .{ -xaxis[0], yaxis[0], -zaxis[0], 0 },
+            .{ -xaxis[1], yaxis[1], -zaxis[1], 0 },
+            .{ -xaxis[2], yaxis[2], -zaxis[2], 0 },
+            .{ 0, 0, 0, 1 },
+        };
+
+        return mat.mul(r, t);
     }
 };
