@@ -2,9 +2,10 @@ const std = @import("std");
 const glfw = @import("glfw");
 const builtin = @import("builtin");
 const c = @import("c.zig");
-const Shader = @import("shader.zig");
+const Shader = @import("Shader.zig");
 const math = @import("math.zig");
 const obj = @import("obj.zig");
+const UniformBuffer = @import("UniformBuffer.zig");
 
 var window_width: u32 = 800;
 var window_height: u32 = 600;
@@ -139,6 +140,7 @@ pub fn main() !u8 {
         model,
         math.mat.rotation(std.math.degreesToRadians(f32, 90), .{ 0, 0, 1 }),
     );
+
     var view = math.mat.lookAt(.{ 0, 0, 2 }, .{ 0, 0, 0 }, .{ 0, 1, 0 });
     var projection = math.mat.perspective(
         std.math.degreesToRadians(f32, 60),
@@ -146,6 +148,12 @@ pub fn main() !u8 {
         0.1,
         100.0,
     );
+
+    const matrices_uniform = UniformBuffer.init(2 * @sizeOf(math.Mat4));
+    defer matrices_uniform.deinit();
+
+    matrices_uniform.bindRange(0);
+    shader_pbr.setUniformBlock("matrices", 0);
 
     var last_frame = glfw.getTime();
     while (!window.shouldClose()) {
@@ -159,6 +167,11 @@ pub fn main() !u8 {
         c.glStencilOp(c.GL_KEEP, c.GL_KEEP, c.GL_REPLACE);
         c.glStencilFunc(c.GL_ALWAYS, 1, 0xFF);
         c.glStencilMask(0xFF);
+
+        c.glBindBuffer(c.GL_UNIFORM_BUFFER, matrices_uniform.ubo);
+        c.glBufferSubData(c.GL_UNIFORM_BUFFER, 0, @sizeOf(math.Mat4), @ptrCast(&view));
+        c.glBufferSubData(c.GL_UNIFORM_BUFFER, @sizeOf(math.Mat4), @sizeOf(math.Mat4), @ptrCast(&projection));
+        c.glBindBuffer(c.GL_UNIFORM_BUFFER, 0);
 
         shader_pbr.use();
         shader_pbr.setUniform(math.Mat4, "model", model);

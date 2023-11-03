@@ -60,7 +60,7 @@ pub fn use(self: Self) void {
     c.glUseProgram(self.id);
 }
 
-pub fn setUniform(self: Self, comptime T: type, name: [*:0]const u8, value: T) void {
+pub fn setUniform(self: Self, comptime T: type, name: [:0]const u8, value: T) void {
     const loc = c.glGetUniformLocation(self.id, name);
     switch (T) {
         bool => c.glUniform1i(loc, value),
@@ -72,4 +72,9 @@ pub fn setUniform(self: Self, comptime T: type, name: [*:0]const u8, value: T) v
         math.Mat4 => c.glUniformMatrix4fv(loc, 1, c.GL_FALSE, @ptrCast(&value)),
         else => @compileError("unsupported uniform type: " ++ @typeName(T)),
     }
+}
+
+pub fn setUniformBlock(self: Self, name: [:0]const u8, binding: c.GLuint) void {
+    const block = c.glGetUniformBlockIndex(self.id, name);
+    c.glUniformBlockBinding(self.id, block, binding);
 }
