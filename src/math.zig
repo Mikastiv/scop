@@ -281,10 +281,10 @@ pub const mat = struct {
 
     pub inline fn translation(t: Vec3) Mat4 {
         return .{
-            .{ 1, 0, 0, t[0] },
-            .{ 0, 1, 0, t[1] },
-            .{ 0, 0, 1, t[2] },
-            .{ 0, 0, 0, 1 },
+            .{ 1, 0, 0, 0 },
+            .{ 0, 1, 0, 0 },
+            .{ 0, 0, 1, 0 },
+            .{ t[0], t[1], t[2], 1 },
         };
     }
 
@@ -303,13 +303,16 @@ pub const mat = struct {
     }
 
     pub inline fn perspective(fovy: f32, aspect: f32, near: f32, far: f32) Mat4 {
-        const tan_half_fov = @tan(fovy / 2);
+        std.debug.assert(near > 0 and far > 0);
+
+        const h = @tan(fovy / 2.0);
+        const r = near - far;
 
         return .{
-            .{ 1 / (aspect * tan_half_fov), 0, 0, 0 },
-            .{ 0, 1 / tan_half_fov, 0, 0 },
-            .{ 0, 0, -(far + near) / (far - near), -1 },
-            .{ 0, 0, (-2 * far * near) / (far - near), 0 },
+            .{ 1.0 / (aspect * h), 0.0, 0.0, 0.0 },
+            .{ 0.0, 1.0 / h, 0.0, 0.0 },
+            .{ 0.0, 0.0, -(far + near) / r, -1.0 },
+            .{ 0.0, 0.0, -2.0 * far * near / r, 0.0 },
         };
     }
 };

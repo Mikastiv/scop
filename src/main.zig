@@ -104,8 +104,8 @@ pub fn main() !u8 {
     const shader_pbr = try Shader.init(allocator, "shaders/pbr.vert", "shaders/pbr.frag");
     defer shader_pbr.deinit();
 
-    var model = try obj.parseObj(allocator, args[1]);
-    model.loadOnGpu();
+    var model3d = try obj.parseObj(allocator, args[1]);
+    model3d.loadOnGpu();
 
     c.glEnable(c.GL_MULTISAMPLE);
     c.glEnable(c.GL_DEPTH_TEST);
@@ -134,6 +134,9 @@ pub fn main() !u8 {
     c.glVertexAttribPointer(0, 3, c.GL_FLOAT, c.GL_FALSE, @sizeOf(math.Vec3), @ptrFromInt(0));
     c.glBindVertexArray(0);
 
+    var model = math.mat.identity(math.Mat4);
+    model = math.mat.mul(model, math.mat.rotation(std.math.degreesToRadians(f32, 90), .{ 0, 0, 1 }));
+
     var last_frame = glfw.getTime();
     while (!window.shouldClose()) {
         const now = glfw.getTime();
@@ -148,6 +151,7 @@ pub fn main() !u8 {
         c.glStencilMask(0xFF);
 
         shader_pbr.use();
+        shader_pbr.setUniform(math.Mat4, "model", model);
         c.glBindVertexArray(vao);
         c.glDrawArrays(c.GL_TRIANGLES, 0, 3);
         c.glBindVertexArray(0);

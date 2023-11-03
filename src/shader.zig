@@ -1,7 +1,7 @@
 const Self = @This();
 const std = @import("std");
 const c = @import("c.zig");
-const Vec3 = @import("math.zig").Vec3;
+const math = @import("math.zig");
 
 id: c.GLuint,
 
@@ -61,13 +61,15 @@ pub fn use(self: Self) void {
 }
 
 pub fn setUniform(self: Self, comptime T: type, name: [*:0]const u8, value: T) void {
-    switch (@TypeOf(T)) {
-        bool => c.glUniform1i(c.glGetUniformLocation(self.id, name), value),
-        i32 => c.glUniform1i(c.glGetUniformLocation(self.id, name), value),
-        u32 => c.glUniform1ui(c.glGetUniformLocation(self.id, name), value),
-        f32 => c.glUniform1f(c.glGetUniformLocation(self.id, name), value),
-        f64 => c.glUniform1d(c.glGetUniformLocation(self.id, name), value),
-        Vec3 => c.glUniform3fv(c.glGetUniformLocation(self.id, name), 1, @ptrCast(&value)),
+    const loc = c.glGetUniformLocation(self.id, name);
+    switch (T) {
+        bool => c.glUniform1i(loc, value),
+        i32 => c.glUniform1i(loc, value),
+        u32 => c.glUniform1ui(loc, value),
+        f32 => c.glUniform1f(loc, value),
+        f64 => c.glUniform1d(loc, value),
+        math.Vec3 => c.glUniform3fv(loc, 1, @ptrCast(&value)),
+        math.Mat4 => c.glUniformMatrix4fv(loc, 1, c.GL_FALSE, @ptrCast(&value)),
         else => @compileError("unsupported uniform type: " ++ @typeName(T)),
     }
 }
