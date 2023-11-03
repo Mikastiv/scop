@@ -1,6 +1,7 @@
 const Self = @This();
 const std = @import("std");
 const c = @import("c.zig");
+const Vec3 = @import("math.zig").Vec3;
 
 id: c.GLuint,
 
@@ -60,22 +61,13 @@ pub fn use(self: Self) void {
 }
 
 pub fn setUniform(self: Self, comptime T: type, name: [*:0]const u8, value: T) void {
-    const type_info = @typeInfo(T);
-    switch (type_info) {
-        .Bool => c.glUniform1i(c.glGetUniformLocation(self.id, name), value),
-        .Int => |t| switch (t.signedness) {
-            .signed => c.glUniform1i(c.glGetUniformLocation(self.id, name), value),
-            .unsigned => c.glUniform1ui(c.glGetUniformLocation(self.id, name), value),
-        },
-        .Float => |t| switch (t.bits) {
-            32 => c.glUniform1f(c.glGetUniformLocation(self.id, name), value),
-            64 => c.glUniform1d(c.glGetUniformLocation(self.id, name), value),
-            else => @compileError("unsupported float format"),
-        },
-        .Vector => |t| switch (t.len) {
-            3 => c.glUniform3fv(c.glGetUniformLocation(self.id, name), 1, @ptrCast(&value)),
-            else => @compileError("unsupported vector format"),
-        },
-        else => @compileError("unsupported uniform type"),
+    switch (@TypeOf(T)) {
+        bool => c.glUniform1i(c.glGetUniformLocation(self.id, name), value),
+        i32 => c.glUniform1i(c.glGetUniformLocation(self.id, name), value),
+        u32 => c.glUniform1ui(c.glGetUniformLocation(self.id, name), value),
+        f32 => c.glUniform1f(c.glGetUniformLocation(self.id, name), value),
+        f64 => c.glUniform1d(c.glGetUniformLocation(self.id, name), value),
+        Vec3 => c.glUniform3fv(c.glGetUniformLocation(self.id, name), 1, @ptrCast(&value)),
+        else => @compileError("unsupported uniform type: " ++ @typeName(T)),
     }
 }

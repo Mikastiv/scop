@@ -112,6 +112,7 @@ pub fn main() !u8 {
     c.glEnable(c.GL_STENCIL_TEST);
     c.glEnable(c.GL_CULL_FACE);
 
+    // Debug triangle
     const triangle = [_]math.Vec3{
         .{ -0.5, -0.5, 0.0 },
         .{ 0.5, -0.5, 0.0 },
@@ -147,9 +148,6 @@ pub fn main() !u8 {
         c.glStencilMask(0xFF);
 
         shader_pbr.use();
-        shader_pbr.setUniform(f32, "pixel_color1", 1.0);
-        shader_pbr.setUniform(f32, "pixel_color2", 0.0);
-        shader_pbr.setUniform(f32, "pixel_color3", 0.0);
         c.glBindVertexArray(vao);
         c.glDrawArrays(c.GL_TRIANGLES, 0, 3);
         c.glBindVertexArray(0);

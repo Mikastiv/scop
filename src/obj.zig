@@ -1,7 +1,6 @@
 const std = @import("std");
 const math = @import("math.zig");
-const vec2 = math.vec2;
-const vec3 = math.vec3;
+const vec = math.vec;
 const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
 const Model = @import("Model.zig");
@@ -82,7 +81,7 @@ const ObjElementType = enum {
 fn parseVec(comptime VecT: type, tokens: std.mem.TokenIterator(u8, .any)) !VecT {
     var it = tokens;
 
-    const len = @typeInfo(VecT).Vector.len;
+    const len = math.veclen(VecT);
     var v: VecT = switch (len) {
         2 => .{ 0, 0 },
         3 => .{ 0, 0, 0 },
@@ -214,16 +213,16 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
         const token_type = ObjElementType.fromStr(token);
         switch (token_type) {
             .vertex => {
-                const vec = parseVec(Vec3, tokens) catch return makeError("error reading vertex", line_number);
-                try vertices.append(vec);
+                const v = parseVec(Vec3, tokens) catch return makeError("error reading vertex", line_number);
+                try vertices.append(v);
             },
             .uv => {
-                const vec = parseVec(Vec2, tokens) catch return makeError("error reading uv", line_number);
-                try uvs.append(vec);
+                const v = parseVec(Vec2, tokens) catch return makeError("error reading uv", line_number);
+                try uvs.append(v);
             },
             .normal => {
-                const vec = parseVec(Vec3, tokens) catch return makeError("error reading normal", line_number);
-                try normals.append(vec);
+                const v = parseVec(Vec3, tokens) catch return makeError("error reading normal", line_number);
+                try normals.append(v);
             },
             .face => {
                 const next_token = tokens.peek() orelse return makeError("error reading face", line_number);
@@ -295,17 +294,19 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
                         vn2 = normals.items[1];
                         vn3 = normals.items[2];
                     } else {
-                        const n = vec3.normalize(vec3.cross(v2 - v1, v3 - v1));
+                        const a = vec.sub(v2, v1);
+                        const b = vec.sub(v3, v1);
+                        const n = vec.normalize(vec.cross(a, b));
                         vn1 = n;
                         vn2 = n;
                         vn3 = n;
                     }
 
                     // tangent & bitangent
-                    const edge1 = v2 - v1;
-                    const edge2 = v3 - v1;
-                    const delta_uv1 = vt2 - vt1;
-                    const delta_uv2 = vt3 - vt1;
+                    const edge1 = vec.sub(v2, v1);
+                    const edge2 = vec.sub(v3, v1);
+                    const delta_uv1 = vec.sub(vt2, vt1);
+                    const delta_uv2 = vec.sub(vt3, vt1);
                     const f = 1.0 / (delta_uv1[0] * delta_uv2[1] - delta_uv2[0] * delta_uv1[1]);
 
                     const tangent = Vec3{
