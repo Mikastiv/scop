@@ -47,9 +47,7 @@ pub fn init(allocator: std.mem.Allocator, vertex_path: []const u8, fragment_path
         return error.ShaderLinkFailed;
     }
 
-    return .{
-        .id = id,
-    };
+    return .{ .id = id };
 }
 
 pub fn deinit(self: Self) void {

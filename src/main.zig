@@ -168,7 +168,7 @@ pub fn main() !u8 {
         c.glStencilFunc(c.GL_ALWAYS, 1, 0xFF);
         c.glStencilMask(0xFF);
 
-        c.glBindBuffer(c.GL_UNIFORM_BUFFER, matrices_uniform.ubo);
+        c.glBindBuffer(c.GL_UNIFORM_BUFFER, matrices_uniform.id);
         c.glBufferSubData(c.GL_UNIFORM_BUFFER, 0, @sizeOf(math.Mat4), @ptrCast(&view));
         c.glBufferSubData(c.GL_UNIFORM_BUFFER, @sizeOf(math.Mat4), @sizeOf(math.Mat4), @ptrCast(&projection));
         c.glBindBuffer(c.GL_UNIFORM_BUFFER, 0);
