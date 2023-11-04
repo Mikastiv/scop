@@ -232,6 +232,7 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
                 if (face.len < 3 or face.len > 4) return makeError("unsupported face size", line_number);
 
                 const triangles = try faceToTriangles(allocator, face);
+                defer triangles.deinit();
                 for (triangles.items) |tri| {
                     // vertex indices
                     const v_idx1 = tri.vertices[0];
@@ -324,27 +325,26 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
                     const vertex2 = Vertex{ .pos = v2, .normal = vn2, .uv = vt2, .tangent = tangent, .bitangent = bitangent };
                     const vertex3 = Vertex{ .pos = v3, .normal = vn3, .uv = vt3, .tangent = tangent, .bitangent = bitangent };
 
-                    if (idx_1) |idx| {
-                        try current_mesh.indices.append(idx);
-                    } else {
-                        const idx = current_mesh.vertices.items.len;
+                    var idx = idx_1 orelse current_mesh.vertices.items.len;
+                    if (idx_1 == null) {
                         try current_mesh.vertices.append(vertex1);
                         try unique_vertices.putNoClobber(obj_v1, @truncate(idx));
                     }
-                    if (idx_2) |idx| {
-                        try current_mesh.indices.append(idx);
-                    } else {
-                        const idx = current_mesh.vertices.items.len;
+                    try current_mesh.indices.append(@truncate(idx));
+
+                    idx = idx_2 orelse current_mesh.vertices.items.len;
+                    if (idx_2 == null) {
                         try current_mesh.vertices.append(vertex2);
                         try unique_vertices.putNoClobber(obj_v2, @truncate(idx));
                     }
-                    if (idx_3) |idx| {
-                        try current_mesh.indices.append(idx);
-                    } else {
-                        const idx = current_mesh.vertices.items.len;
+                    try current_mesh.indices.append(@truncate(idx));
+
+                    idx = idx_3 orelse current_mesh.vertices.items.len;
+                    if (idx_3 == null) {
                         try current_mesh.vertices.append(vertex3);
                         try unique_vertices.putNoClobber(obj_v3, @truncate(idx));
                     }
+                    try current_mesh.indices.append(@truncate(idx));
                 }
             },
             .object => current_mesh.name = std.mem.trim(u8, tokens.rest(), &std.ascii.whitespace),
