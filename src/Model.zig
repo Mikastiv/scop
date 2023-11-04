@@ -28,3 +28,9 @@ pub fn loadOnGpu(self: *Self) void {
         mesh.loadOnGpu();
     }
 }
+
+pub fn draw(self: *const Self) void {
+    for (self.meshes.items) |mesh| {
+        mesh.draw();
+    }
+}
