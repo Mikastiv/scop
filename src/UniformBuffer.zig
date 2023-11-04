@@ -16,8 +16,8 @@ pub fn init(size: c.GLsizeiptr) Self {
 }
 
 pub fn bindRange(self: Self, binding_point: c.GLuint) void {
-    c.glBindBuffer(c.GL_UNIFORM_BUFFER, self.ubo);
-    c.glBindBufferRange(c.GL_UNIFORM_BUFFER, binding_point, self.ubo, 0, self.size);
+    c.glBindBuffer(c.GL_UNIFORM_BUFFER, self.id);
+    c.glBindBufferRange(c.GL_UNIFORM_BUFFER, binding_point, self.id, 0, self.size);
     c.glBindBuffer(c.GL_UNIFORM_BUFFER, 0);
 }
 

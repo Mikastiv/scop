@@ -5,13 +5,15 @@ const Material = @import("Material.zig");
 const math = @import("math.zig");
 const Vec3 = math.Vec3;
 const Vec2 = math.Vec2;
+const VertexBuffer = @import("VertexBuffer.zig");
+const IndexBuffer = @import("IndexBuffer.zig");
 const c = @import("c.zig");
 
 allocator: std.mem.Allocator,
 name: []const u8,
-vao: c.GLuint,
-vbo: c.GLuint,
-ebo: c.GLuint,
+vao: c.GLuint = c.GL_INVALID_VALUE,
+vertex_buffer: VertexBuffer,
+index_buffer: IndexBuffer,
 vertices: std.ArrayList(Vertex),
 indices: std.ArrayList(u16),
 material: *const Material,
@@ -24,9 +26,9 @@ pub fn init(allocator: std.mem.Allocator) Self {
     return .{
         .allocator = allocator,
         .name = "",
-        .vao = 0,
-        .vbo = 0,
-        .ebo = 0,
+        .vao = c.GL_INVALID_VALUE,
+        .vertex_buffer = .{ .id = c.GL_INVALID_VALUE },
+        .index_buffer = .{ .id = c.GL_INVALID_VALUE },
         .vertices = std.ArrayList(Vertex).init(allocator),
         .indices = std.ArrayList(u16).init(allocator),
         .material = &default_material,
@@ -42,23 +44,8 @@ pub fn loadOnGpu(self: *Self) void {
     c.glGenVertexArrays(1, @ptrCast(&self.vao));
     c.glBindVertexArray(self.vao);
 
-    c.glGenBuffers(1, @ptrCast(&self.vbo));
-    c.glBindBuffer(c.GL_ARRAY_BUFFER, self.vbo);
-    c.glBufferData(
-        c.GL_ARRAY_BUFFER,
-        @intCast(@sizeOf(Vertex) * self.vertices.items.len),
-        self.vertices.items.ptr,
-        c.GL_STATIC_DRAW,
-    );
-
-    c.glGenBuffers(1, @ptrCast(&self.ebo));
-    c.glBindBuffer(c.GL_ELEMENT_ARRAY_BUFFER, self.ebo);
-    c.glBufferData(
-        c.GL_ELEMENT_ARRAY_BUFFER,
-        @intCast(@sizeOf(u16) * self.indices.items.len),
-        self.indices.items.ptr,
-        c.GL_STATIC_DRAW,
-    );
+    self.vertex_buffer = VertexBuffer.init(Vertex, self.vertices.items);
+    self.index_buffer = IndexBuffer.init(u16, self.indices.items);
 
     c.glEnableVertexAttribArray(0);
     c.glVertexAttribPointer(0, 3, c.GL_FLOAT, c.GL_FALSE, @sizeOf(Vertex), @ptrFromInt(@offsetOf(Vertex, "pos")));
@@ -71,7 +58,6 @@ pub fn loadOnGpu(self: *Self) void {
     c.glEnableVertexAttribArray(4);
     c.glVertexAttribPointer(4, 3, c.GL_FLOAT, c.GL_FALSE, @sizeOf(Vertex), @ptrFromInt(@offsetOf(Vertex, "bitangent")));
 
-    c.glBindBuffer(c.GL_ARRAY_BUFFER, 0);
     c.glBindVertexArray(0);
 }
 

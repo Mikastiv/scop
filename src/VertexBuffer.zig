@@ -1,5 +1,5 @@
 const Self = @This();
-const c = @import("math.zig");
+const c = @import("c.zig");
 
 id: c.GLuint,
 
