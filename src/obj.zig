@@ -235,116 +235,120 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
                 defer triangles.deinit();
                 for (triangles.items) |tri| {
                     // vertex indices
-                    const v_idx1 = tri.vertices[0];
-                    const v_idx2 = tri.vertices[1];
-                    const v_idx3 = tri.vertices[2];
+                    const v_idxs = [_]u32{ tri.vertices[0], tri.vertices[1], tri.vertices[2] };
                     const v_size = vertices.items.len;
 
                     // uv indices
-                    const vt_idx1 = tri.uvs[0];
-                    const vt_idx2 = tri.uvs[1];
-                    const vt_idx3 = tri.uvs[2];
+                    const vt_idxs = [_]u32{ tri.uvs[0], tri.uvs[1], tri.uvs[2] };
                     const vt_size = uvs.items.len;
 
                     // normal indices
-                    const vn_idx1 = tri.normals[0];
-                    const vn_idx2 = tri.normals[1];
-                    const vn_idx3 = tri.normals[2];
+                    const vn_idxs = [_]u32{ tri.normals[0], tri.normals[1], tri.normals[2] };
                     const vn_size = normals.items.len;
 
-                    if (v_idx1 >= v_size or v_idx2 >= v_size or v_idx3 >= v_size)
+                    if (v_idxs[0] >= v_size or v_idxs[1] >= v_size or v_idxs[2] >= v_size)
                         return makeError("invalid vertex index", line_number);
-                    if (containsUVs(face_type) and (vt_idx1 >= vt_size or vt_idx2 >= vt_size or vt_idx3 >= vt_size))
+                    if (containsUVs(face_type) and (vt_idxs[0] >= vt_size or vt_idxs[1] >= vt_size or vt_idxs[2] >= vt_size))
                         return makeError("invalid uv index", line_number);
-                    if (containsNormals(face_type) and (vn_idx1 >= vn_size or vn_idx2 >= vn_size or vn_idx3 >= vn_size))
+                    if (containsNormals(face_type) and (vn_idxs[0] >= vn_size or vn_idxs[1] >= vn_size or vn_idxs[2] >= vn_size))
                         return makeError("invalid normal index", line_number);
 
-                    const obj_v1 = ObjVertex{ .face_type = face_type, .vertex = v_idx1, .uv = vt_idx1, .normal = vn_idx1 };
-                    const obj_v2 = ObjVertex{ .face_type = face_type, .vertex = v_idx2, .uv = vt_idx2, .normal = vn_idx2 };
-                    const obj_v3 = ObjVertex{ .face_type = face_type, .vertex = v_idx3, .uv = vt_idx3, .normal = vn_idx3 };
+                    const obj_verts = [_]ObjVertex{
+                        .{
+                            .face_type = face_type,
+                            .vertex = v_idxs[0],
+                            .uv = vt_idxs[0],
+                            .normal = vn_idxs[0],
+                        },
+                        .{
+                            .face_type = face_type,
+                            .vertex = v_idxs[1],
+                            .uv = vt_idxs[1],
+                            .normal = vn_idxs[1],
+                        },
+                        .{
+                            .face_type = face_type,
+                            .vertex = v_idxs[2],
+                            .uv = vt_idxs[2],
+                            .normal = vn_idxs[2],
+                        },
+                    };
 
-                    const idx_1 = unique_vertices.get(obj_v1);
-                    const idx_2 = unique_vertices.get(obj_v2);
-                    const idx_3 = unique_vertices.get(obj_v3);
+                    const idxs = [_]?u16{
+                        unique_vertices.get(obj_verts[0]),
+                        unique_vertices.get(obj_verts[1]),
+                        unique_vertices.get(obj_verts[2]),
+                    };
 
                     // vertices
-                    const v1 = vertices.items[v_idx1];
-                    const v2 = vertices.items[v_idx2];
-                    const v3 = vertices.items[v_idx3];
+                    const vs = [_]Vec3{
+                        vertices.items[v_idxs[0]],
+                        vertices.items[v_idxs[1]],
+                        vertices.items[v_idxs[2]],
+                    };
 
                     // uvs
-                    var vt1: Vec2 = undefined;
-                    var vt2: Vec2 = undefined;
-                    var vt3: Vec2 = undefined;
+                    var vts: [3]Vec2 = undefined;
                     if (containsUVs(face_type)) {
-                        vt1 = uvs.items[vt_idx1];
-                        vt2 = uvs.items[vt_idx2];
-                        vt3 = uvs.items[vt_idx3];
+                        vts[0] = uvs.items[vt_idxs[0]];
+                        vts[1] = uvs.items[vt_idxs[1]];
+                        vts[2] = uvs.items[vt_idxs[2]];
                     } else {
-                        vt1 = .{ v1[2], v1[1] };
-                        vt2 = .{ v2[2], v2[1] };
-                        vt3 = .{ v3[2], v3[1] };
+                        vts[0] = .{ vs[0][2], vs[0][1] };
+                        vts[1] = .{ vs[1][2], vs[1][1] };
+                        vts[2] = .{ vs[2][2], vs[2][1] };
                     }
 
                     // normals
-                    var vn1: Vec3 = undefined;
-                    var vn2: Vec3 = undefined;
-                    var vn3: Vec3 = undefined;
+                    var vns: [3]Vec3 = undefined;
                     if (containsNormals(face_type)) {
-                        vn1 = normals.items[0];
-                        vn2 = normals.items[1];
-                        vn3 = normals.items[2];
+                        vns[0] = normals.items[0];
+                        vns[1] = normals.items[1];
+                        vns[2] = normals.items[2];
                     } else {
-                        const a = vec.sub(v2, v1);
-                        const b = vec.sub(v3, v1);
+                        const a = vec.sub(vs[1], vs[0]);
+                        const b = vec.sub(vs[2], vs[0]);
                         const n = vec.normalize(vec.cross(a, b));
-                        vn1 = n;
-                        vn2 = n;
-                        vn3 = n;
+                        vns[0] = n;
+                        vns[1] = n;
+                        vns[2] = n;
                     }
 
                     // tangent & bitangent
-                    const edge1 = vec.sub(v2, v1);
-                    const edge2 = vec.sub(v3, v1);
-                    const delta_uv1 = vec.sub(vt2, vt1);
-                    const delta_uv2 = vec.sub(vt3, vt1);
-                    const f = 1.0 / (delta_uv1[0] * delta_uv2[1] - delta_uv2[0] * delta_uv1[1]);
+                    const edge1 = vec.sub(vs[1], vs[0]);
+                    const edge2 = vec.sub(vs[2], vs[0]);
+                    const d_uv1 = vec.sub(vts[1], vts[0]);
+                    const d_uv2 = vec.sub(vts[2], vts[0]);
+                    const f = 1.0 / (d_uv1[0] * d_uv2[1] - d_uv2[0] * d_uv1[1]);
 
                     const tangent = Vec3{
-                        f * (delta_uv2[1] * edge1[0] - delta_uv1[1] * edge2[0]),
-                        f * (delta_uv2[1] * edge1[1] - delta_uv1[1] * edge2[1]),
-                        f * (delta_uv2[1] * edge1[2] - delta_uv1[1] * edge2[2]),
+                        f * (d_uv2[1] * edge1[0] - d_uv1[1] * edge2[0]),
+                        f * (d_uv2[1] * edge1[1] - d_uv1[1] * edge2[1]),
+                        f * (d_uv2[1] * edge1[2] - d_uv1[1] * edge2[2]),
                     };
                     const bitangent = Vec3{
-                        f * (-delta_uv2[1] * edge1[0] + delta_uv1[1] * edge2[0]),
-                        f * (-delta_uv2[1] * edge1[1] + delta_uv1[1] * edge2[1]),
-                        f * (-delta_uv2[1] * edge1[2] + delta_uv1[1] * edge2[2]),
+                        f * (-d_uv2[1] * edge1[0] + d_uv1[1] * edge2[0]),
+                        f * (-d_uv2[1] * edge1[1] + d_uv1[1] * edge2[1]),
+                        f * (-d_uv2[1] * edge1[2] + d_uv1[1] * edge2[2]),
                     };
 
-                    const vertex1 = Vertex{ .pos = v1, .normal = vn1, .uv = vt1, .tangent = tangent, .bitangent = bitangent };
-                    const vertex2 = Vertex{ .pos = v2, .normal = vn2, .uv = vt2, .tangent = tangent, .bitangent = bitangent };
-                    const vertex3 = Vertex{ .pos = v3, .normal = vn3, .uv = vt3, .tangent = tangent, .bitangent = bitangent };
+                    const verts = [_]Vertex{
+                        .{ .pos = vs[0], .normal = vns[0], .uv = vts[0], .tangent = tangent, .bitangent = bitangent },
+                        .{ .pos = vs[1], .normal = vns[1], .uv = vts[1], .tangent = tangent, .bitangent = bitangent },
+                        .{ .pos = vs[2], .normal = vns[2], .uv = vts[2], .tangent = tangent, .bitangent = bitangent },
+                    };
 
-                    var idx = idx_1 orelse current_mesh.vertices.items.len;
-                    if (idx_1 == null) {
-                        try current_mesh.vertices.append(vertex1);
-                        try unique_vertices.putNoClobber(obj_v1, @truncate(idx));
+                    for (0..3) |i| {
+                        var current_idx: u16 = undefined;
+                        if (idxs[i] == null) {
+                            current_idx = @truncate(current_mesh.vertices.items.len);
+                            try current_mesh.vertices.append(verts[i]);
+                            try unique_vertices.putNoClobber(obj_verts[i], @truncate(current_idx));
+                        } else {
+                            current_idx = idxs[i].?;
+                        }
+                        try current_mesh.indices.append(@truncate(current_idx));
                     }
-                    try current_mesh.indices.append(@truncate(idx));
-
-                    idx = idx_2 orelse current_mesh.vertices.items.len;
-                    if (idx_2 == null) {
-                        try current_mesh.vertices.append(vertex2);
-                        try unique_vertices.putNoClobber(obj_v2, @truncate(idx));
-                    }
-                    try current_mesh.indices.append(@truncate(idx));
-
-                    idx = idx_3 orelse current_mesh.vertices.items.len;
-                    if (idx_3 == null) {
-                        try current_mesh.vertices.append(vertex3);
-                        try unique_vertices.putNoClobber(obj_v3, @truncate(idx));
-                    }
-                    try current_mesh.indices.append(@truncate(idx));
                 }
             },
             .object => current_mesh.name = std.mem.trim(u8, tokens.rest(), &std.ascii.whitespace),
