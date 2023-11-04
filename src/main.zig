@@ -6,6 +6,7 @@ const Shader = @import("Shader.zig");
 const math = @import("math.zig");
 const obj = @import("obj.zig");
 const UniformBuffer = @import("UniformBuffer.zig");
+const ico = @import("icosphere.zig");
 
 var window_width: u32 = 800;
 var window_height: u32 = 600;
@@ -135,6 +136,10 @@ pub fn main() !u8 {
     c.glVertexAttribPointer(0, 3, c.GL_FLOAT, c.GL_FALSE, @sizeOf(math.Vec3), @ptrFromInt(0));
     c.glBindVertexArray(0);
 
+    var sphere = try ico.generateIcosphere(allocator, 3);
+    defer sphere.deinit();
+    sphere.loadOnGpu();
+
     var model = math.mat.identity(math.Mat4);
     model = math.mat.mul(
         model,
@@ -177,7 +182,8 @@ pub fn main() !u8 {
         shader_pbr.setUniform(math.Mat4, "model", model);
         shader_pbr.setUniform(math.Mat4, "view", view);
         shader_pbr.setUniform(math.Mat4, "projection", projection);
-        model3d.draw();
+        // model3d.draw();
+        sphere.draw();
         // c.glBindVertexArray(vao);
         // c.glDrawArrays(c.GL_TRIANGLES, 0, 3);
         // c.glBindVertexArray(0);

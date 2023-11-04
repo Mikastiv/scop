@@ -357,6 +357,7 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
             .material_lib => {
                 const mtl_filename = std.mem.trim(u8, tokens.rest(), &std.ascii.whitespace);
                 const new_materials = try loadMaterials(allocator, dirname, mtl_filename);
+                defer allocator.free(new_materials);
                 try model.materials.appendSlice(new_materials);
             },
             .smooth_shading => {},
