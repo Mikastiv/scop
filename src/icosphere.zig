@@ -81,8 +81,7 @@ pub fn generateIcosphere(allocator: std.mem.Allocator, tessellation: u32) !Mesh 
         var new_idxs = std.ArrayList(u16).init(allocator);
 
         var idx: u32 = 0;
-        const len = mesh.indices.items.len;
-        while (idx < len) : (idx += 3) {
+        while (idx < mesh.indices.items.len) : (idx += 3) {
             const a = try addMiddlePoint(
                 &idx_cache,
                 &mesh.vertices,

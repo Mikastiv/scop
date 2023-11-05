@@ -180,6 +180,10 @@ fn makeError(comptime msg: []const u8, line_number: u32) error{ParseError} {
     return error.ParseError;
 }
 
+fn newlineToken(str: []const u8) []const u8 {
+    return if (std.mem.indexOf(u8, str, "\r\n")) |_| "\r\n" else "\n";
+}
+
 pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
     const file = try std.fs.cwd().openFile(filename, .{});
     const dirname = std.fs.path.dirname(filename) orelse ".";
@@ -202,7 +206,7 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
 
     const current_mesh = &model.meshes.items[0];
 
-    var lines = std.mem.splitScalar(u8, file_content, '\n');
+    var lines = std.mem.splitSequence(u8, file_content, newlineToken(file_content));
     var line_number: u32 = 0;
     while (lines.next()) |line| {
         line_number += 1;
@@ -398,7 +402,7 @@ fn loadMaterials(allocator: std.mem.Allocator, dirname: []const u8, filename: []
 
     var current_material: ?*Material = null;
 
-    var lines = std.mem.splitScalar(u8, file_content, '\n');
+    var lines = std.mem.splitSequence(u8, file_content, newlineToken(file_content));
     var line_number: u32 = 0;
     while (lines.next()) |line| {
         line_number += 1;
