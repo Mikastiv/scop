@@ -140,7 +140,7 @@ pub fn main() !u8 {
     const window = try createWindow();
     defer window.destroy();
 
-    window.setInputModeCursor(.disabled);
+    window.setInputMode(.cursor, .disabled);
 
     // const window_size = window.getFramebufferSize();
     // c.glViewport(0, 0, @intCast(window_size.width), @intCast(window_size.height));
