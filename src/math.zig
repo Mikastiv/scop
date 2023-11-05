@@ -330,12 +330,7 @@ pub const mat = struct {
     }
 
     pub inline fn scale(m: *const Mat4, s: Vec3) Mat4 {
-        var out = m.*;
-        out[0] = vec.mul(m.*[0], s[0]);
-        out[1] = vec.mul(m.*[1], s[1]);
-        out[2] = vec.mul(m.*[2], s[2]);
-        out[3] = m.*[3];
-        return out;
+        return mul(m.*, scaling(s));
     }
 
     pub inline fn scaleScalar(m: *const Mat4, s: f32) Mat4 {
