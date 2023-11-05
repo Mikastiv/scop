@@ -187,23 +187,29 @@ pub const mat = struct {
         };
     }
 
-    inline fn calculateRow(
-        a0: anytype,
-        a1: @TypeOf(a0),
-        a2: @TypeOf(a0),
-        a3: @TypeOf(a0),
-        b: @TypeOf(a0),
-    ) @TypeOf(a0) {
-        const part1 = vec.add(vec.mul(a0, b[0]), vec.mul(a1, b[1]));
-        const part2 = vec.add(vec.mul(a2, b[2]), vec.mul(a3, b[3]));
-        return vec.add(part1, part2);
-    }
-
     pub inline fn mul(a: anytype, b: @TypeOf(a)) @TypeOf(a) {
         return switch (@TypeOf(a)) {
-            Mat2 => .{
-                .{ a[0][0] * b[0][0] + a[0][1] * b[1][0], a[0][0] * b[0][1] + a[0][1] * b[1][1] },
-                .{ a[1][0] * b[0][0] + a[1][1] * b[1][0], a[1][0] * b[0][1] + a[1][1] * b[1][1] },
+            Mat2 => blk: {
+                const a00 = a[0][0];
+                const a01 = a[0][1];
+                const a10 = a[1][0];
+                const a11 = a[1][1];
+
+                const b00 = b[0][0];
+                const b01 = b[0][1];
+                const b10 = b[1][0];
+                const b11 = b[1][1];
+
+                break :blk .{
+                    .{
+                        a00 * b00 + a10 * b01,
+                        a01 * b00 + a11 * b01,
+                    },
+                    .{
+                        a00 * b10 + a10 * b11,
+                        a01 * b10 + a11 * b11,
+                    },
+                };
             },
             Mat3 => blk: {
                 const a00 = a[0][0];
@@ -245,21 +251,65 @@ pub const mat = struct {
                 };
             },
             Mat4 => blk: {
-                const a0 = a[0];
-                const a1 = a[1];
-                const a2 = a[2];
-                const a3 = a[3];
+                const a00 = a[0][0];
+                const a01 = a[0][1];
+                const a02 = a[0][2];
+                const a03 = a[0][3];
+                const a10 = a[1][0];
+                const a11 = a[1][1];
+                const a12 = a[1][2];
+                const a13 = a[1][3];
+                const a20 = a[2][0];
+                const a21 = a[2][1];
+                const a22 = a[2][2];
+                const a23 = a[2][3];
+                const a30 = a[3][0];
+                const a31 = a[3][1];
+                const a32 = a[3][2];
+                const a33 = a[3][3];
 
-                const b0 = b[0];
-                const b1 = b[1];
-                const b2 = b[2];
-                const b3 = b[3];
+                const b00 = b[0][0];
+                const b01 = b[0][1];
+                const b02 = b[0][2];
+                const b03 = b[0][3];
+                const b10 = b[1][0];
+                const b11 = b[1][1];
+                const b12 = b[1][2];
+                const b13 = b[1][3];
+                const b20 = b[2][0];
+                const b21 = b[2][1];
+                const b22 = b[2][2];
+                const b23 = b[2][3];
+                const b30 = b[3][0];
+                const b31 = b[3][1];
+                const b32 = b[3][2];
+                const b33 = b[3][3];
 
                 break :blk .{
-                    calculateRow(a0, a1, a2, a3, b0),
-                    calculateRow(a0, a1, a2, a3, b1),
-                    calculateRow(a0, a1, a2, a3, b2),
-                    calculateRow(a0, a1, a2, a3, b3),
+                    .{
+                        a00 * b00 + a10 * b01 + a20 * b02 + a30 * b03,
+                        a01 * b00 + a11 * b01 + a21 * b02 + a31 * b03,
+                        a02 * b00 + a12 * b01 + a22 * b02 + a32 * b03,
+                        a03 * b00 + a13 * b01 + a23 * b02 + a33 * b03,
+                    },
+                    .{
+                        a00 * b10 + a10 * b11 + a20 * b12 + a30 * b13,
+                        a01 * b10 + a11 * b11 + a21 * b12 + a31 * b13,
+                        a02 * b10 + a12 * b11 + a22 * b12 + a32 * b13,
+                        a03 * b10 + a13 * b11 + a23 * b12 + a33 * b13,
+                    },
+                    .{
+                        a00 * b20 + a10 * b21 + a20 * b22 + a30 * b23,
+                        a01 * b20 + a11 * b21 + a21 * b22 + a31 * b23,
+                        a02 * b20 + a12 * b21 + a22 * b22 + a32 * b23,
+                        a03 * b20 + a13 * b21 + a23 * b22 + a33 * b23,
+                    },
+                    .{
+                        a00 * b30 + a10 * b31 + a20 * b32 + a30 * b33,
+                        a01 * b30 + a11 * b31 + a21 * b32 + a31 * b33,
+                        a02 * b30 + a12 * b31 + a22 * b32 + a32 * b33,
+                        a03 * b30 + a13 * b31 + a23 * b32 + a33 * b33,
+                    },
                 };
             },
             else => unsupportedType(@TypeOf(a)),
@@ -302,9 +352,7 @@ pub const mat = struct {
     }
 
     pub inline fn translate(m: *const Mat4, t: Vec3) Mat4 {
-        var out = m.*;
-        out[3] = calculateRow(m.*[0], m.*[1], m.*[2], m.*[3], .{ t[0], t[1], t[2], 1 });
-        return out;
+        return mul(m.*, translation(t));
     }
 
     pub inline fn rotation(angle: f32, axis: Vec3) Mat4 {
@@ -322,14 +370,7 @@ pub const mat = struct {
     }
 
     pub inline fn rotate(m: *const Mat4, angle: f32, axis: Vec3) Mat4 {
-        const r = rotation(angle, axis);
-
-        var out = m.*;
-        out[0] = calculateRow(m.*[0], m.*[1], m.*[2], .{ 0, 0, 0, 0 }, .{ r[0][0], r[0][1], r[0][2], 0 });
-        out[1] = calculateRow(m.*[0], m.*[1], m.*[2], .{ 0, 0, 0, 0 }, .{ r[1][0], r[1][1], r[1][2], 0 });
-        out[2] = calculateRow(m.*[0], m.*[1], m.*[2], .{ 0, 0, 0, 0 }, .{ r[2][0], r[2][1], r[2][2], 0 });
-        out[3] = m.*[3];
-        return out;
+        return mul(m.*, rotation(angle, axis));
     }
 
     pub inline fn perspective(fovy: f32, aspect: f32, near: f32, far: f32) Mat4 {
