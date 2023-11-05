@@ -8,10 +8,20 @@ const obj = @import("obj.zig");
 const UniformBuffer = @import("UniformBuffer.zig");
 const ico = @import("icosphere.zig");
 const PointLight = @import("PointLight.zig");
+const Camera = @import("Camera.zig");
 
-var window_width: u32 = 800;
-var window_height: u32 = 600;
-var aspect_ratio: f32 = 800.0 / 600.0;
+const default_window_width = 800;
+const default_window_height = 600;
+
+var window_width: u32 = default_window_width;
+var window_height: u32 = default_window_height;
+var aspect_ratio: f32 = @as(f32, default_window_width) / @as(f32, default_window_height);
+
+var camera: Camera = Camera.init(.{ 0, 0, 7 }, .{ 0, 1, 0 }, 9);
+var first_mouse = true;
+var last_mouse_pos = math.Vec2{ default_window_width / 2.0, default_window_height / 2.0 };
+const sensitivity: f32 = 0.075;
+var fov: f32 = 45.0;
 
 fn errorCallback(error_code: glfw.ErrorCode, description: [:0]const u8) void {
     std.log.err("glfw: {}: {s}\n", .{ error_code, description });
@@ -30,16 +40,30 @@ fn keyboardCallback(window: glfw.Window, key: glfw.Key, scancode: i32, action: g
     _ = scancode;
 }
 
-fn mouseCallback(window: glfw.Window, xpos: f64, ypos: f64) void {
-    _ = ypos;
-    _ = xpos;
-    _ = window;
+fn mouseCallback(_: glfw.Window, xpos: f64, ypos: f64) void {
+    const xpos32: f32 = @floatCast(xpos);
+    const ypos32: f32 = @floatCast(ypos);
+
+    if (first_mouse) {
+        first_mouse = false;
+        last_mouse_pos[0] = xpos32;
+        last_mouse_pos[1] = ypos32;
+    }
+
+    const offset = math.Vec2{
+        xpos32 - last_mouse_pos[0],
+        last_mouse_pos[1] - ypos32,
+    };
+
+    last_mouse_pos = .{ xpos32, ypos32 };
+
+    camera.updateDirection(.{ offset[0] * sensitivity, offset[1] * sensitivity });
 }
 
-fn scrollCallback(window: glfw.Window, xoffset: f64, yoffset: f64) void {
-    _ = yoffset;
-    _ = xoffset;
-    _ = window;
+fn scrollCallback(_: glfw.Window, _: f64, yoffset: f64) void {
+    fov -= @floatCast(yoffset);
+    if (fov < 1.0) fov = 1.0;
+    if (fov > 45.0) fov = 45.0;
 }
 
 fn validateArgs(args: []const []const u8) !bool {
@@ -82,6 +106,18 @@ fn createWindow() !glfw.Window {
     return window;
 }
 
+fn processInput(window: glfw.Window, cam: *Camera, dt: f32) void {
+    const speed = cam.speed * dt;
+    const d_forward = math.vec.mul(cam.direction, speed);
+    const d_right = math.vec.mul(cam.right, speed);
+    if (window.getKey(.w) == .press) cam.pos = math.vec.add(cam.pos, d_forward);
+    if (window.getKey(.s) == .press) cam.pos = math.vec.sub(cam.pos, d_forward);
+    if (window.getKey(.d) == .press) cam.pos = math.vec.add(cam.pos, d_right);
+    if (window.getKey(.a) == .press) cam.pos = math.vec.sub(cam.pos, d_right);
+    if (window.getKey(.space) == .press) cam.pos[1] += speed;
+    if (window.getKey(.left_shift) == .press) cam.pos[1] -= speed;
+}
+
 pub fn main() !u8 {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
@@ -103,6 +139,11 @@ pub fn main() !u8 {
 
     const window = try createWindow();
     defer window.destroy();
+
+    window.setInputModeCursor(.disabled);
+
+    // const window_size = window.getFramebufferSize();
+    // c.glViewport(0, 0, @intCast(window_size.width), @intCast(window_size.height));
 
     const shader_pbr = try Shader.init(allocator, "shaders/pbr.vert", "shaders/pbr.frag");
     defer shader_pbr.deinit();
@@ -155,12 +196,13 @@ pub fn main() !u8 {
         .{ .pos = .{ -2, 2, 2 } },
     };
 
-    var last_frame = glfw.getTime();
+    var last_frame: f64 = 0;
     while (!window.shouldClose()) {
         const now = glfw.getTime();
-        const delta_time = now - last_frame;
-        _ = delta_time;
+        const delta_time = @as(f32, @floatCast(now - last_frame));
         last_frame = glfw.getTime();
+
+        processInput(window, &camera, delta_time);
 
         c.glClearColor(0.1, 0.1, 0.1, 1.0);
         c.glClear(c.GL_COLOR_BUFFER_BIT | c.GL_DEPTH_BUFFER_BIT | c.GL_STENCIL_BUFFER_BIT);
@@ -168,9 +210,9 @@ pub fn main() !u8 {
         c.glStencilFunc(c.GL_ALWAYS, 1, 0xFF);
         c.glStencilMask(0xFF);
 
-        const view = math.mat.lookAt(.{ 0, 0, 5 }, .{ 0, 0, 0 }, .{ 0, 1, 0 });
+        const view = camera.viewMatrix();
         const projection = math.mat.perspective(
-            std.math.degreesToRadians(f32, 45),
+            std.math.degreesToRadians(f32, fov),
             aspect_ratio,
             0.1,
             100.0,
@@ -184,15 +226,17 @@ pub fn main() !u8 {
         shader_light.use();
         for (lights) |l| {
             var model = math.mat.identity(math.Mat4);
-            model = math.mat.rotate(&model, std.math.degreesToRadians(f32, 90), .{ 0, 0, 1 });
-            model = math.mat.scaleScalar(&model, 0.3);
             model = math.mat.translate(&model, l.pos);
+            model = math.mat.scaleScalar(&model, 0.3);
+            model = math.mat.rotate(&model, std.math.degreesToRadians(f32, 90), .{ 0, 0, 1 });
             shader_light.setUniform(math.Mat4, "model", model);
             sphere.draw();
         }
 
         shader_pbr.use();
         var model = math.mat.identity(math.Mat4);
+        model = math.mat.translate(&model, .{ 1, 0, 0 });
+        model = math.mat.scaleScalar(&model, 1.5);
         model = math.mat.rotate(&model, std.math.degreesToRadians(f32, 90), .{ 0, 0, 1 });
         shader_pbr.setUniform(math.Mat4, "model", model);
         c.glBindVertexArray(vao);
