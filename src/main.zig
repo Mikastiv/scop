@@ -7,6 +7,7 @@ const math = @import("math.zig");
 const obj = @import("obj.zig");
 const UniformBuffer = @import("UniformBuffer.zig");
 const ico = @import("icosphere.zig");
+const PointLight = @import("PointLight.zig");
 
 var window_width: u32 = 800;
 var window_height: u32 = 600;
@@ -105,6 +106,8 @@ pub fn main() !u8 {
 
     const shader_pbr = try Shader.init(allocator, "shaders/pbr.vert", "shaders/pbr.frag");
     defer shader_pbr.deinit();
+    const shader_light = try Shader.init(allocator, "shaders/light.vert", "shaders/light.frag");
+    defer shader_light.deinit();
 
     var model3d = try obj.parseObj(allocator, args[1]);
     model3d.loadOnGpu();
@@ -140,25 +143,17 @@ pub fn main() !u8 {
     defer sphere.deinit();
     sphere.loadOnGpu();
 
-    var model = math.mat.identity(math.Mat4);
-    model = math.mat.mul(
-        model,
-        math.mat.rotation(std.math.degreesToRadians(f32, -90), .{ 0, 1, 0 }),
-    );
-
-    var view = math.mat.lookAt(.{ 0, 0, 8 }, .{ 0, 0, 0 }, .{ 0, 1, 0 });
-    var projection = math.mat.perspective(
-        std.math.degreesToRadians(f32, 60),
-        aspect_ratio,
-        0.1,
-        100.0,
-    );
-
     const matrices_uniform = UniformBuffer.init(2 * @sizeOf(math.Mat4));
     defer matrices_uniform.deinit();
 
     matrices_uniform.bindRange(0);
     shader_pbr.setUniformBlock("matrices", 0);
+    shader_light.setUniformBlock("matrices", 0);
+
+    const lights = [_]PointLight{
+        .{ .pos = .{ 2, 2, 2 } },
+        .{ .pos = .{ -2, 2, 2 } },
+    };
 
     var last_frame = glfw.getTime();
     while (!window.shouldClose()) {
@@ -173,20 +168,36 @@ pub fn main() !u8 {
         c.glStencilFunc(c.GL_ALWAYS, 1, 0xFF);
         c.glStencilMask(0xFF);
 
+        const view = math.mat.lookAt(.{ 0, 0, 5 }, .{ 0, 0, 0 }, .{ 0, 1, 0 });
+        const projection = math.mat.perspective(
+            std.math.degreesToRadians(f32, 45),
+            aspect_ratio,
+            0.1,
+            100.0,
+        );
+
         c.glBindBuffer(c.GL_UNIFORM_BUFFER, matrices_uniform.id);
         c.glBufferSubData(c.GL_UNIFORM_BUFFER, 0, @sizeOf(math.Mat4), @ptrCast(&view));
         c.glBufferSubData(c.GL_UNIFORM_BUFFER, @sizeOf(math.Mat4), @sizeOf(math.Mat4), @ptrCast(&projection));
         c.glBindBuffer(c.GL_UNIFORM_BUFFER, 0);
 
+        shader_light.use();
+        for (lights) |l| {
+            var model = math.mat.identity(math.Mat4);
+            model = math.mat.rotate(&model, std.math.degreesToRadians(f32, 90), .{ 0, 0, 1 });
+            model = math.mat.scaleScalar(&model, 0.3);
+            model = math.mat.translate(&model, l.pos);
+            shader_light.setUniform(math.Mat4, "model", model);
+            sphere.draw();
+        }
+
         shader_pbr.use();
+        var model = math.mat.identity(math.Mat4);
+        model = math.mat.rotate(&model, std.math.degreesToRadians(f32, 90), .{ 0, 0, 1 });
         shader_pbr.setUniform(math.Mat4, "model", model);
-        shader_pbr.setUniform(math.Mat4, "view", view);
-        shader_pbr.setUniform(math.Mat4, "projection", projection);
-        // model3d.draw();
-        sphere.draw();
-        // c.glBindVertexArray(vao);
-        // c.glDrawArrays(c.GL_TRIANGLES, 0, 3);
-        // c.glBindVertexArray(0);
+        c.glBindVertexArray(vao);
+        c.glDrawArrays(c.GL_TRIANGLES, 0, 3);
+        c.glBindVertexArray(0);
 
         window.swapBuffers();
         glfw.pollEvents();

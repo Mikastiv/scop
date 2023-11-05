@@ -279,6 +279,19 @@ pub const mat = struct {
         return scaling(.{ s, s, s });
     }
 
+    pub inline fn scale(m: *const Mat4, s: Vec3) Mat4 {
+        var out = m.*;
+        out[0] = vec.mul(m.*[0], s[0]);
+        out[1] = vec.mul(m.*[1], s[1]);
+        out[2] = vec.mul(m.*[2], s[2]);
+        out[3] = m.*[3];
+        return out;
+    }
+
+    pub inline fn scaleScalar(m: *const Mat4, s: f32) Mat4 {
+        return scale(m, .{ s, s, s });
+    }
+
     pub inline fn translation(t: Vec3) Mat4 {
         return .{
             .{ 1, 0, 0, 0 },
@@ -286,6 +299,12 @@ pub const mat = struct {
             .{ 0, 0, 1, 0 },
             .{ t[0], t[1], t[2], 1 },
         };
+    }
+
+    pub inline fn translate(m: *const Mat4, t: Vec3) Mat4 {
+        var out = m.*;
+        out[3] = calculateRow(m.*[0], m.*[1], m.*[2], m.*[3], .{ t[0], t[1], t[2], 1 });
+        return out;
     }
 
     pub inline fn rotation(angle: f32, axis: Vec3) Mat4 {
@@ -300,6 +319,17 @@ pub const mat = struct {
             .{ t[2] * a[0] + s * a[1], t[2] * a[1] - s * a[0], c + t[2] * a[2], 0 },
             .{ 0, 0, 0, 1 },
         };
+    }
+
+    pub inline fn rotate(m: *const Mat4, angle: f32, axis: Vec3) Mat4 {
+        const r = rotation(angle, axis);
+
+        var out = m.*;
+        out[0] = calculateRow(m.*[0], m.*[1], m.*[2], .{ 0, 0, 0, 0 }, .{ r[0][0], r[0][1], r[0][2], 0 });
+        out[1] = calculateRow(m.*[0], m.*[1], m.*[2], .{ 0, 0, 0, 0 }, .{ r[1][0], r[1][1], r[1][2], 0 });
+        out[2] = calculateRow(m.*[0], m.*[1], m.*[2], .{ 0, 0, 0, 0 }, .{ r[2][0], r[2][1], r[2][2], 0 });
+        out[3] = m.*[3];
+        return out;
     }
 
     pub inline fn perspective(fovy: f32, aspect: f32, near: f32, far: f32) Mat4 {
