@@ -283,13 +283,13 @@ pub const mat = struct {
         std.debug.assert(near > 0 and far > 0);
 
         const h = @tan(fovy / 2.0);
-        const r = near - far;
+        const d = far - near;
 
         return .{
             .{ 1.0 / (aspect * h), 0.0, 0.0, 0.0 },
             .{ 0.0, 1.0 / h, 0.0, 0.0 },
-            .{ 0.0, 0.0, -(far + near) / r, -1.0 },
-            .{ 0.0, 0.0, -2.0 * far * near / r, 0.0 },
+            .{ 0.0, 0.0, -(far + near) / d, -1.0 },
+            .{ 0.0, 0.0, -(2.0 * far * near) / d, 0.0 },
         };
     }
 
