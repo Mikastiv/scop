@@ -235,11 +235,22 @@ pub fn main() !u8 {
             sphere.draw();
         }
 
+        shader_pbr.use();
+        shader_pbr.setUniform(math.Vec3, "albedo", .{ 0.5, 0, 0 });
+        shader_pbr.setUniform(f32, "ao", 1);
+        shader_pbr.setUniform(math.Vec3, "camera_position", camera.pos);
+
+        for (lights, 0..) |l, i| {
+            var buffer: [256]u8 = undefined;
+            var slice = try std.fmt.bufPrintZ(&buffer, "light_positions[{d}]", .{i});
+            shader_pbr.setUniform(math.Vec3, slice, l.pos);
+            slice = try std.fmt.bufPrintZ(&buffer, "light_colors[{d}]", .{i});
+            shader_pbr.setUniform(math.Vec3, slice, l.color);
+        }
+
         const spacing = 2.0;
         const rows = 7;
         const columns = 7;
-        shader_pbr.use();
-
         for (0..rows) |row| {
             const rows_f32: f32 = @floatFromInt(rows);
             const row_f32: f32 = @floatFromInt(row);

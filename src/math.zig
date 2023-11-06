@@ -194,7 +194,7 @@ pub const mat = struct {
         }
 
         const row_len = veclen(@TypeOf(a[0]));
-        const col_len = veclen(@TypeOf(a[0]));
+        const col_len = a.len;
 
         var out: @TypeOf(a) = undefined;
         inline for (0..row_len) |row| {
@@ -206,7 +206,24 @@ pub const mat = struct {
                 }
             }
         }
+        return out;
+    }
 
+    pub inline fn transpose(m: anytype) @TypeOf(m) {
+        switch (@TypeOf(m)) {
+            Mat2, Mat3, Mat4 => {},
+            else => unsupportedType(@TypeOf(m)),
+        }
+
+        const row_len = veclen(@TypeOf(m[0]));
+        const col_len = m.len;
+
+        var out: @TypeOf(m) = undefined;
+        inline for (0..row_len) |row| {
+            inline for (0..col_len) |col| {
+                out[row][col] = m[col][row];
+            }
+        }
         return out;
     }
 
