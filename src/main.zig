@@ -20,7 +20,7 @@ var aspect_ratio: f32 = @as(f32, default_window_width) / @as(f32, default_window
 var camera: Camera = Camera.init(.{ 0, 0, 7 }, .{ 0, 1, 0 }, 9);
 var first_mouse = true;
 var last_mouse_pos = math.Vec2{ default_window_width / 2.0, default_window_height / 2.0 };
-const sensitivity: f32 = 0.075;
+const sensitivity = 0.075;
 var fov: f32 = 45.0;
 
 fn errorCallback(error_code: glfw.ErrorCode, description: [:0]const u8) void {
@@ -41,21 +41,21 @@ fn keyboardCallback(window: glfw.Window, key: glfw.Key, scancode: i32, action: g
 }
 
 fn mouseCallback(_: glfw.Window, xpos: f64, ypos: f64) void {
-    const xpos32: f32 = @floatCast(xpos);
-    const ypos32: f32 = @floatCast(ypos);
+    const xpos_f32: f32 = @floatCast(xpos);
+    const ypos_f32: f32 = @floatCast(ypos);
 
     if (first_mouse) {
         first_mouse = false;
-        last_mouse_pos[0] = xpos32;
-        last_mouse_pos[1] = ypos32;
+        last_mouse_pos[0] = xpos_f32;
+        last_mouse_pos[1] = ypos_f32;
     }
 
     const offset = math.Vec2{
-        xpos32 - last_mouse_pos[0],
-        last_mouse_pos[1] - ypos32,
+        xpos_f32 - last_mouse_pos[0],
+        last_mouse_pos[1] - ypos_f32,
     };
 
-    last_mouse_pos = .{ xpos32, ypos32 };
+    last_mouse_pos = .{ xpos_f32, ypos_f32 };
 
     camera.updateDirection(.{ offset[0] * sensitivity, offset[1] * sensitivity });
 }
@@ -191,9 +191,12 @@ pub fn main() !u8 {
     shader_pbr.setUniformBlock("matrices", 0);
     shader_light.setUniformBlock("matrices", 0);
 
+    const light_color = math.Vec3{ 300, 300, 300 };
     const lights = [_]PointLight{
-        .{ .pos = .{ 2, 2, 2 } },
-        .{ .pos = .{ -2, 2, 2 } },
+        .{ .pos = .{ -10, 10, 10 }, .color = light_color },
+        .{ .pos = .{ 10, 10, 10 }, .color = light_color },
+        .{ .pos = .{ -10, -10, 10 }, .color = light_color },
+        .{ .pos = .{ 10, -10, 10 }, .color = light_color },
     };
 
     var last_frame: f64 = 0;
@@ -228,20 +231,47 @@ pub fn main() !u8 {
             var model = math.mat.identity(math.Mat4);
             model = math.mat.translate(&model, l.pos);
             model = math.mat.scaleScalar(&model, 0.3);
-            model = math.mat.rotate(&model, std.math.degreesToRadians(f32, 90), .{ 0, 0, 1 });
             shader_light.setUniform(math.Mat4, "model", model);
             sphere.draw();
         }
 
+        const spacing = 2.0;
+        const rows = 7;
+        const columns = 7;
         shader_pbr.use();
-        var model = math.mat.identity(math.Mat4);
-        model = math.mat.translate(&model, .{ 1, 0, 0 });
-        model = math.mat.scaleScalar(&model, 1.5);
-        model = math.mat.rotate(&model, std.math.degreesToRadians(f32, 90), .{ 0, 0, 1 });
-        shader_pbr.setUniform(math.Mat4, "model", model);
-        c.glBindVertexArray(vao);
-        c.glDrawArrays(c.GL_TRIANGLES, 0, 3);
-        c.glBindVertexArray(0);
+
+        for (0..rows) |row| {
+            const rows_f32: f32 = @floatFromInt(rows);
+            const row_f32: f32 = @floatFromInt(row);
+            const cols_f32: f32 = @floatFromInt(columns);
+
+            shader_pbr.setUniform(f32, "metallic", row_f32 / rows_f32);
+            for (0..columns) |col| {
+                const col_f32: f32 = @floatFromInt(col);
+
+                shader_pbr.setUniform(f32, "roughness", std.math.clamp(col_f32 / cols_f32, 0.05, 1.0));
+
+                var model = math.mat.identity(math.Mat4);
+                model = math.mat.translate(&model, .{
+                    (col_f32 - cols_f32 / 2.0) * spacing,
+                    (row_f32 - rows_f32 / 2.0) * spacing,
+                    0.0,
+                });
+                model = math.mat.scaleScalar(&model, 0.75);
+                shader_pbr.setUniform(math.Mat4, "model", model);
+                // transpose, inverse
+                sphere.draw();
+            }
+        }
+
+        // var model = math.mat.identity(math.Mat4);
+        // model = math.mat.translate(&model, .{ 1, 0, 0 });
+        // model = math.mat.scaleScalar(&model, 1.5);
+        // model = math.mat.rotate(&model, std.math.degreesToRadians(f32, 90), .{ 0, 0, 1 });
+        // shader_pbr.setUniform(math.Mat4, "model", model);
+        // c.glBindVertexArray(vao);
+        // c.glDrawArrays(c.GL_TRIANGLES, 0, 3);
+        // c.glBindVertexArray(0);
 
         window.swapBuffers();
         glfw.pollEvents();
