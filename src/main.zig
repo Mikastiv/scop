@@ -155,30 +155,7 @@ pub fn main() !u8 {
 
     c.glEnable(c.GL_MULTISAMPLE);
     c.glEnable(c.GL_DEPTH_TEST);
-    c.glEnable(c.GL_STENCIL_TEST);
     c.glEnable(c.GL_CULL_FACE);
-
-    // Debug triangle
-    const triangle = [_]math.Vec3{
-        .{ -0.5, -0.5, 0.0 },
-        .{ 0.5, -0.5, 0.0 },
-        .{ 0.0, 0.5, 0.0 },
-    };
-    var vao: u32 = undefined;
-    var vbo: u32 = undefined;
-    c.glGenVertexArrays(1, @ptrCast(&vao));
-    c.glBindVertexArray(vao);
-    c.glGenBuffers(1, @ptrCast(&vbo));
-    c.glBindBuffer(c.GL_ARRAY_BUFFER, vbo);
-    c.glBufferData(
-        c.GL_ARRAY_BUFFER,
-        @intCast(@sizeOf(math.Vec3) * 3),
-        &triangle,
-        c.GL_STATIC_DRAW,
-    );
-    c.glEnableVertexAttribArray(0);
-    c.glVertexAttribPointer(0, 3, c.GL_FLOAT, c.GL_FALSE, @sizeOf(math.Vec3), @ptrFromInt(0));
-    c.glBindVertexArray(0);
 
     var sphere = try ico.generateIcosphere(allocator, 3);
     defer sphere.deinit();
@@ -208,10 +185,7 @@ pub fn main() !u8 {
         processInput(window, &camera, delta_time);
 
         c.glClearColor(0.1, 0.1, 0.1, 1.0);
-        c.glClear(c.GL_COLOR_BUFFER_BIT | c.GL_DEPTH_BUFFER_BIT | c.GL_STENCIL_BUFFER_BIT);
-        c.glStencilOp(c.GL_KEEP, c.GL_KEEP, c.GL_REPLACE);
-        c.glStencilFunc(c.GL_ALWAYS, 1, 0xFF);
-        c.glStencilMask(0xFF);
+        c.glClear(c.GL_COLOR_BUFFER_BIT | c.GL_DEPTH_BUFFER_BIT);
 
         const view = camera.viewMatrix();
         const projection = math.mat.perspective(
@@ -274,15 +248,6 @@ pub fn main() !u8 {
                 sphere.draw();
             }
         }
-
-        // var model = math.mat.identity(math.Mat4);
-        // model = math.mat.translate(&model, .{ 1, 0, 0 });
-        // model = math.mat.scaleScalar(&model, 1.5);
-        // model = math.mat.rotate(&model, std.math.degreesToRadians(f32, 90), .{ 0, 0, 1 });
-        // shader_pbr.setUniform(math.Mat4, "model", model);
-        // c.glBindVertexArray(vao);
-        // c.glDrawArrays(c.GL_TRIANGLES, 0, 3);
-        // c.glBindVertexArray(0);
 
         window.swapBuffers();
         glfw.pollEvents();
