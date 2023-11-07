@@ -113,3 +113,46 @@ pub fn generateIcosphere(allocator: std.mem.Allocator, tessellation: u32) !Mesh 
 
     return mesh;
 }
+
+pub fn generateSphere(allocator: std.mem.Allocator, x_segments: u32, y_segments: u32) !Mesh {
+    var mesh = Mesh.init(allocator);
+
+    for (0..x_segments + 1) |x| {
+        for (0..y_segments + 1) |y| {
+            const x_segment = @as(f32, @floatFromInt(x)) / @as(f32, @floatFromInt(x_segments));
+            const y_segment = @as(f32, @floatFromInt(y)) / @as(f32, @floatFromInt(y_segments));
+            const x_pos = @cos(x_segment * 2.0 * std.math.pi) * @sin(y_segment * std.math.pi);
+            const y_pos = @cos(y_segment * std.math.pi);
+            const z_pos = @sin(x_segment * 2.0 * std.math.pi) * @sin(y_segment * std.math.pi);
+
+            try mesh.vertices.append(.{
+                .pos = .{ x_pos, y_pos, z_pos },
+                .normal = .{ x_pos, y_pos, z_pos },
+                .uv = .{ x_segment, y_segment },
+                .tangent = .{ x_pos, y_pos, z_pos },
+                .bitangent = .{ x_pos, y_pos, z_pos },
+            });
+        }
+    }
+
+    var odd_row = false;
+    for (0..y_segments) |y| {
+        if (!odd_row) // even rows: y == 0, y == 2; and so on
+        {
+            for (0..x_segments + 1) |x| {
+                try mesh.indices.append(@intCast(y * (x_segments + 1) + x));
+                try mesh.indices.append(@intCast((y + 1) * (x_segments + 1) + x));
+            }
+        } else {
+            var x = x_segments + 1;
+            for (0..x_segments + 1) |_| {
+                x -= 1;
+                try mesh.indices.append(@intCast((y + 1) * (x_segments + 1) + x));
+                try mesh.indices.append(@intCast(y * (x_segments + 1) + x));
+            }
+        }
+        odd_row = !odd_row;
+    }
+
+    return mesh;
+}

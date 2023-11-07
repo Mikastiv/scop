@@ -60,8 +60,8 @@ pub fn loadOnGpu(self: *Self) void {
     self.index_buffer.unbind();
 }
 
-pub fn draw(self: *const Self) void {
+pub fn draw(self: *const Self, primitive: c.GLenum) void {
     c.glBindVertexArray(self.vao);
-    c.glDrawElements(c.GL_TRIANGLES, @intCast(self.indices.items.len), c.GL_UNSIGNED_SHORT, null);
+    c.glDrawElements(primitive, @intCast(self.indices.items.len), c.GL_UNSIGNED_SHORT, null);
     c.glBindVertexArray(0);
 }

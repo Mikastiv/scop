@@ -2,13 +2,15 @@
 
 layout(location = 0) in vec3 normal;
 layout(location = 1) in vec3 world_pos;
+layout(location = 2) in vec2 tex_coords;
 
 layout(location = 0) out vec4 out_color;
 
-uniform vec3 albedo;
+uniform sampler2D albedo_map;
+uniform sampler2D metallic_map;
+uniform sampler2D roughness_map;
+uniform sampler2D normal_map;
 uniform float ao;
-uniform float metallic;
-uniform float roughness;
 
 #define LIGHT_COUNT 4
 
@@ -58,6 +60,10 @@ vec3 fresnel_schlick(float cos_theta, vec3 f0) {
 void main() {
     vec3 n = normalize(normal);
     vec3 v = normalize(camera_position - world_pos);
+
+    vec3 albedo = pow(texture(albedo_map, tex_coords).rgb, vec3(2.2));
+    float metallic = texture(metallic_map, tex_coords).r;
+    float roughness = texture(roughness_map, tex_coords).r;
 
     vec3 f0 = vec3(0.04);
     f0 = mix(f0, albedo, metallic);

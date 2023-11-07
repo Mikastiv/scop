@@ -6,7 +6,7 @@ const Shader = @import("Shader.zig");
 const math = @import("math.zig");
 const obj = @import("obj.zig");
 const UniformBuffer = @import("UniformBuffer.zig");
-const ico = @import("icosphere.zig");
+const shape = @import("shape.zig");
 const PointLight = @import("PointLight.zig");
 const Camera = @import("Camera.zig");
 const bmp = @import("bmp.zig");
@@ -163,11 +163,25 @@ pub fn main() !u8 {
     const debug_plane = try DebugPlane.init(allocator, "res/materials/rustediron/rustediron2_basecolor.bmp");
     defer debug_plane.deinit();
 
+    const albdeo_img = try bmp.load(allocator, "res/materials/rustediron/rustediron2_basecolor.bmp", false);
+    defer albdeo_img.deinit();
+    const metallic_img = try bmp.load(allocator, "res/materials/rustediron/rustediron2_metallic.bmp", false);
+    defer metallic_img.deinit();
+    const normal_img = try bmp.load(allocator, "res/materials/rustediron/rustediron2_normal.bmp", false);
+    defer normal_img.deinit();
+    const roughness_img = try bmp.load(allocator, "res/materials/rustediron/rustediron2_roughness.bmp", false);
+    defer roughness_img.deinit();
+
+    const albedo = Texture.init(albdeo_img);
+    const metallic = Texture.init(metallic_img);
+    const normal = Texture.init(normal_img);
+    const roughness = Texture.init(roughness_img);
+
     c.glEnable(c.GL_MULTISAMPLE);
     c.glEnable(c.GL_DEPTH_TEST);
     c.glEnable(c.GL_CULL_FACE);
 
-    var sphere = try ico.generateIcosphere(allocator, 3);
+    var sphere = try shape.generateSphere(allocator, 64, 64);
     defer sphere.deinit();
     sphere.loadOnGpu();
 
@@ -216,14 +230,10 @@ pub fn main() !u8 {
             model = math.mat.translate(&model, l.pos);
             model = math.mat.scaleScalar(&model, 0.3);
             shader_light.setUniform(math.Mat4, "model", model);
-            sphere.draw();
+            sphere.draw(c.GL_TRIANGLES);
         }
 
         shader_pbr.use();
-        shader_pbr.setUniform(math.Vec3, "albedo", .{ 0.5, 0, 0 });
-        shader_pbr.setUniform(f32, "ao", 1);
-        shader_pbr.setUniform(math.Vec3, "camera_position", camera.pos);
-
         for (lights, 0..) |l, i| {
             var buffer: [256]u8 = undefined;
             var slice = try std.fmt.bufPrintZ(&buffer, "light_positions[{d}]", .{i});
@@ -231,6 +241,17 @@ pub fn main() !u8 {
             slice = try std.fmt.bufPrintZ(&buffer, "light_colors[{d}]", .{i});
             shader_pbr.setUniform(math.Vec3, slice, l.color);
         }
+
+        shader_pbr.setUniform(f32, "ao", 1);
+        shader_pbr.setUniform(math.Vec3, "camera_position", camera.pos);
+        albedo.bind(c.GL_TEXTURE0);
+        shader_pbr.setUniform(i32, "albedo_map", 0);
+        metallic.bind(c.GL_TEXTURE1);
+        shader_pbr.setUniform(i32, "metallic_map", 1);
+        normal.bind(c.GL_TEXTURE2);
+        shader_pbr.setUniform(i32, "normal_map", 2);
+        roughness.bind(c.GL_TEXTURE3);
+        shader_pbr.setUniform(i32, "roughness_map", 3);
 
         const spacing = 2.0;
         const rows = 7;
@@ -240,11 +261,8 @@ pub fn main() !u8 {
             const row_f32: f32 = @floatFromInt(row);
             const cols_f32: f32 = @floatFromInt(columns);
 
-            shader_pbr.setUniform(f32, "metallic", row_f32 / rows_f32);
             for (0..columns) |col| {
                 const col_f32: f32 = @floatFromInt(col);
-
-                shader_pbr.setUniform(f32, "roughness", std.math.clamp(col_f32 / cols_f32, 0.05, 1.0));
 
                 var model = math.mat.identity(math.Mat4);
                 model = math.mat.translate(&model, .{
@@ -255,11 +273,11 @@ pub fn main() !u8 {
                 model = math.mat.scaleScalar(&model, 0.75);
                 shader_pbr.setUniform(math.Mat4, "model", model);
                 // transpose, inverse
-                sphere.draw();
+                sphere.draw(c.GL_TRIANGLE_STRIP);
             }
         }
 
-        debug_plane.draw();
+        //debug_plane.draw();
 
         window.swapBuffers();
         glfw.pollEvents();
