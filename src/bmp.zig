@@ -12,6 +12,10 @@ const CompressionType = enum(u32) {
     alpha_bitfields = 6,
 };
 
+fn fourCC(comptime a: u8, comptime b: u8, comptime c: u8, comptime d: u8) u32 {
+    return (@as(u32, a) << 24) | (@as(u32, b) << 16) | (@as(u32, c) << 8) | @as(u32, d);
+}
+
 const ColorSpace = enum(u32) {
     calibrated_rgb = 0,
     srgb = fourCC('s', 'R', 'G', 'B'),
@@ -33,8 +37,8 @@ const BmpHeader = extern struct {
     header_size: u32,
     width: i32,
     height: i32,
-    n_color_planes: u16 align(1),
-    bpp: u16 align(1),
+    n_color_planes: u16,
+    bpp: u16,
     compression_type: CompressionType,
     image_size: u32,
     x_pixels_per_meter: u32,
@@ -48,14 +52,29 @@ const BmpHeader = extern struct {
     color_space: ColorSpace,
 };
 
-fn fourCC(comptime a: u8, comptime b: u8, comptime c: u8, comptime d: u8) u32 {
-    return (@as(u32, a) << 24) | (@as(u32, b) << 16) | (@as(u32, c) << 8) | @as(u32, d);
-}
+const BufferedReader = std.io.BufferedReader(8 * 1024, std.io.StreamSource.Reader);
 
-fn typeErasedRead(self: *const anyopaque, buffer: []u8) anyerror!usize {
-    const ptr: *std.io.BufferedReader(8 * 1024, std.io.StreamSource.Reader) = @constCast(@alignCast(@ptrCast(self)));
-    return std.io.BufferedReader(8 * 1024, std.io.StreamSource.Reader).read(ptr, buffer);
-}
+const BmpReader = struct {
+    const Self = @This();
+
+    buffered_reader: BufferedReader,
+
+    fn init(stream: *std.io.StreamSource) Self {
+        return .{ .buffered_reader = .{ .unbuffered_reader = stream.reader() } };
+    }
+
+    fn readFn(self: *const anyopaque, buffer: []u8) anyerror!usize {
+        const ptr: *Self = @constCast(@alignCast(@ptrCast(self)));
+        return ptr.buffered_reader.read(buffer);
+    }
+
+    fn reader(self: *Self) std.io.AnyReader {
+        return .{
+            .context = @ptrCast(self),
+            .readFn = readFn,
+        };
+    }
+};
 
 pub fn load(allocator: mem.Allocator, filename: []const u8, flip_vertically: bool) !Image {
     std.debug.assert(mem.endsWith(u8, filename, ".bmp"));
@@ -63,8 +82,8 @@ pub fn load(allocator: mem.Allocator, filename: []const u8, flip_vertically: boo
     const image = try std.fs.cwd().openFile(filename, .{});
     defer image.close();
     var stream = std.io.StreamSource{ .file = image };
-    var buffered_reader = std.io.BufferedReader(8 * 1024, std.io.StreamSource.Reader){ .unbuffered_reader = stream.reader() };
-    var reader = std.io.AnyReader{ .context = @ptrCast(&buffered_reader), .readFn = typeErasedRead };
+    var bmp_reader = BmpReader.init(&stream);
+    var reader = bmp_reader.reader();
 
     const file_header: FileHeader = try reader.readStruct(FileHeader);
     const bmp_header: BmpHeader = try reader.readStruct(BmpHeader);
