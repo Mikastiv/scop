@@ -1,8 +1,10 @@
 #version 410 core
 
-layout(location = 0) in vec3 normal;
-layout(location = 1) in vec3 world_pos;
-layout(location = 2) in vec2 tex_coords;
+in VS_OUT {
+    vec3 normal;
+    vec3 world_pos;
+    vec2 tex_coords;
+} vs_in;
 
 layout(location = 0) out vec4 out_color;
 
@@ -58,21 +60,21 @@ vec3 fresnel_schlick(float cos_theta, vec3 f0) {
 }
 
 void main() {
-    vec3 n = normalize(normal);
-    vec3 v = normalize(camera_position - world_pos);
+    vec3 n = normalize(vs_in.normal);
+    vec3 v = normalize(camera_position - vs_in.world_pos);
 
-    vec3 albedo = pow(texture(albedo_map, tex_coords).rgb, vec3(2.2));
-    float metallic = texture(metallic_map, tex_coords).r;
-    float roughness = texture(roughness_map, tex_coords).r;
+    vec3 albedo = pow(texture(albedo_map, vs_in.tex_coords).rgb, vec3(2.2));
+    float metallic = texture(metallic_map, vs_in.tex_coords).r;
+    float roughness = texture(roughness_map, vs_in.tex_coords).r;
 
     vec3 f0 = vec3(0.04);
     f0 = mix(f0, albedo, metallic);
 
     vec3 lo = vec3(0.0);
     for (int i = 0; i < LIGHT_COUNT; ++i) {
-        vec3 l = normalize(light_positions[i] - world_pos);
+        vec3 l = normalize(light_positions[i] - vs_in.world_pos);
         vec3 h = normalize(v + l);
-        float dist = length(light_positions[i] - world_pos);
+        float dist = length(light_positions[i] - vs_in.world_pos);
         float attenuation = 1.0 / (dist * dist);
         vec3 radiance = light_colors[i] * attenuation;
 

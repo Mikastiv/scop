@@ -137,8 +137,7 @@ pub fn generateSphere(allocator: std.mem.Allocator, x_segments: u32, y_segments:
 
     var odd_row = false;
     for (0..y_segments) |y| {
-        if (!odd_row) // even rows: y == 0, y == 2; and so on
-        {
+        if (!odd_row) {
             for (0..x_segments + 1) |x| {
                 try mesh.indices.append(@intCast(y * (x_segments + 1) + x));
                 try mesh.indices.append(@intCast((y + 1) * (x_segments + 1) + x));
