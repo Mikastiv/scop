@@ -32,7 +32,7 @@ pub fn init(allocator: std.mem.Allocator) Self {
     };
 }
 
-pub fn deinit(self: *Self) void {
+pub fn deinit(self: *const Self) void {
     self.vertices.deinit();
     self.indices.deinit();
 }

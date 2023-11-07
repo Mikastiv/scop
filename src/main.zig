@@ -10,7 +10,8 @@ const ico = @import("icosphere.zig");
 const PointLight = @import("PointLight.zig");
 const Camera = @import("Camera.zig");
 const bmp = @import("bmp.zig");
-const debug = @import("debug.zig");
+const DebugPlane = @import("DebugPlane.zig");
+const Texture = @import("Texture.zig");
 
 const default_window_width = 800;
 const default_window_height = 600;
@@ -159,30 +160,8 @@ pub fn main() !u8 {
     var model3d = try obj.parseObj(allocator, args[1]);
     model3d.loadOnGpu();
 
-    const image = try bmp.load(allocator, "res/materials/rustediron/rustediron2_basecolor.bmp", false);
-    defer image.deinit();
-    var debug_mesh = try debug.createDebugPlane(allocator);
-    defer debug_mesh.deinit();
-    debug_mesh.loadOnGpu();
-    var tex_id: u32 = undefined;
-    c.glGenTextures(1, &tex_id);
-    c.glBindTexture(c.GL_TEXTURE_2D, tex_id);
-    c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_WRAP_S, c.GL_REPEAT);
-    c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_WRAP_T, c.GL_REPEAT);
-    c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MIN_FILTER, c.GL_LINEAR);
-    c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MAG_FILTER, c.GL_LINEAR);
-    c.glTexImage2D(
-        c.GL_TEXTURE_2D,
-        0,
-        c.GL_RGB,
-        @intCast(image.width),
-        @intCast(image.height),
-        0,
-        c.GL_RGBA,
-        c.GL_UNSIGNED_BYTE,
-        @ptrCast(image.pixels.ptr),
-    );
-    c.glGenerateMipmap(c.GL_TEXTURE_2D);
+    const debug_plane = try DebugPlane.init(allocator, "res/materials/rustediron/rustediron2_basecolor.bmp");
+    defer debug_plane.deinit();
 
     c.glEnable(c.GL_MULTISAMPLE);
     c.glEnable(c.GL_DEPTH_TEST);
@@ -198,7 +177,6 @@ pub fn main() !u8 {
     matrices_uniform.bindRange(0);
     shader_pbr.setUniformBlock("matrices", 0);
     shader_light.setUniformBlock("matrices", 0);
-    shader_debug.setUniformBlock("matrices", 0);
 
     const light_color = math.Vec3{ 300, 300, 300 };
     const lights = [_]PointLight{
@@ -241,17 +219,6 @@ pub fn main() !u8 {
             sphere.draw();
         }
 
-        {
-            shader_debug.use();
-            var model = math.mat.identity(math.Mat4);
-            model = math.mat.translate(&model, .{ 10, 0, 2 });
-            shader_debug.setUniform(math.Mat4, "model", model);
-            c.glActiveTexture(c.GL_TEXTURE0);
-            c.glBindTexture(c.GL_TEXTURE_2D, tex_id);
-            shader_debug.setUniform(i32, "tex", 0);
-            debug_mesh.draw();
-        }
-
         shader_pbr.use();
         shader_pbr.setUniform(math.Vec3, "albedo", .{ 0.5, 0, 0 });
         shader_pbr.setUniform(f32, "ao", 1);
@@ -291,6 +258,8 @@ pub fn main() !u8 {
                 sphere.draw();
             }
         }
+
+        debug_plane.draw();
 
         window.swapBuffers();
         glfw.pollEvents();

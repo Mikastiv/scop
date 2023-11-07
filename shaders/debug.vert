@@ -8,11 +8,6 @@ layout(location = 0) out vec3 normal;
 layout(location = 1) out vec3 world_pos;
 layout(location = 2) out vec2 tex_coords;
 
-layout (std140) uniform matrices {
-    mat4 view;
-    mat4 projection;
-};
-
 uniform mat4 model;
 
 void main() {
@@ -20,5 +15,5 @@ void main() {
     normal = normal_matrix * in_normal;
     world_pos = vec3(model * vec4(in_pos, 1.0));
     tex_coords = in_uv;
-    gl_Position = projection * view * vec4(world_pos, 1.0);
+    gl_Position = vec4(world_pos, 1.0);
 }
