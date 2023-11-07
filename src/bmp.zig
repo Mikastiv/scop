@@ -104,11 +104,6 @@ pub fn load(allocator: mem.Allocator, filename: []const u8, flip_vertically: boo
         return error.UnsupportedColorSpace;
 
     var flipped = bmp_header.height < 0;
-    const pixel_width = bmp_header.bpp / 8;
-    _ = pixel_width;
-    const image_size = bmp_header.bpp * @divTrunc(bmp_header.width, 32) * 4;
-    const stride = std.mem.alignForward(u32, @as(u32, @intCast(image_size)), @alignOf(u32));
-    _ = stride;
 
     const alloc_size = bmp_header.width * 4 * bmp_header.height;
     var pixels = try allocator.alloc(u32, @as(usize, @intCast(alloc_size)));
