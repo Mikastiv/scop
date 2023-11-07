@@ -186,6 +186,7 @@ fn newlineToken(str: []const u8) []const u8 {
 
 pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
     const file = try std.fs.cwd().openFile(filename, .{});
+    defer file.close();
     const dirname = std.fs.path.dirname(filename) orelse ".";
     const file_content = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
     defer allocator.free(file_content);
@@ -395,6 +396,7 @@ fn loadMaterials(allocator: std.mem.Allocator, dirname: []const u8, filename: []
     const filepath = try std.mem.join(allocator, "/", &.{ dirname, filename });
     defer allocator.free(filepath);
     const file = try std.fs.cwd().openFile(filepath, .{});
+    defer file.close();
     const file_content = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
     defer allocator.free(file_content);
 

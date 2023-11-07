@@ -9,6 +9,7 @@ const UniformBuffer = @import("UniformBuffer.zig");
 const ico = @import("icosphere.zig");
 const PointLight = @import("PointLight.zig");
 const Camera = @import("Camera.zig");
+const bmp = @import("bmp.zig");
 
 const default_window_width = 800;
 const default_window_height = 600;
@@ -153,7 +154,9 @@ pub fn main() !u8 {
     var model3d = try obj.parseObj(allocator, args[1]);
     model3d.loadOnGpu();
 
+    const image = try bmp.load(allocator, "res/materials/rustediron/rustediron2_basecolor.bmp", false);
     c.glEnable(c.GL_MULTISAMPLE);
+    _ = image;
     c.glEnable(c.GL_DEPTH_TEST);
     c.glEnable(c.GL_CULL_FACE);
 
