@@ -230,7 +230,7 @@ pub fn main() !u8 {
             model = math.mat.translate(&model, l.pos);
             model = math.mat.scaleScalar(&model, 0.3);
             shader_light.setUniform(math.Mat4, "model", model);
-            sphere.draw(c.GL_TRIANGLES);
+            sphere.draw(c.GL_TRIANGLE_STRIP);
         }
 
         shader_pbr.use();
@@ -253,29 +253,11 @@ pub fn main() !u8 {
         roughness.bind(c.GL_TEXTURE3);
         shader_pbr.setUniform(i32, "roughness_map", 3);
 
-        const spacing = 2.0;
-        const rows = 7;
-        const columns = 7;
-        for (0..rows) |row| {
-            const rows_f32: f32 = @floatFromInt(rows);
-            const row_f32: f32 = @floatFromInt(row);
-            const cols_f32: f32 = @floatFromInt(columns);
-
-            for (0..columns) |col| {
-                const col_f32: f32 = @floatFromInt(col);
-
-                var model = math.mat.identity(math.Mat4);
-                model = math.mat.translate(&model, .{
-                    (col_f32 - cols_f32 / 2.0) * spacing + 1,
-                    (row_f32 - rows_f32 / 2.0) * spacing + 1,
-                    0.0,
-                });
-                model = math.mat.scaleScalar(&model, 0.75);
-                shader_pbr.setUniform(math.Mat4, "model", model);
-                // transpose, inverse
-                sphere.draw(c.GL_TRIANGLE_STRIP);
-            }
-        }
+        var model = math.mat.identity(math.Mat4);
+        model = math.mat.scaleScalar(&model, 0.75);
+        shader_pbr.setUniform(math.Mat4, "model", model);
+        // transpose, inverse
+        sphere.draw(c.GL_TRIANGLE_STRIP);
 
         //debug_plane.draw();
 
