@@ -12,38 +12,49 @@ const CompressionType = enum(u32) {
     alpha_bitfields = 6,
 };
 
-const Header = struct {
+const ColorSpace = enum(u32) {
+    calibrated_rgb = 0,
+    srgb = fourCC('s', 'R', 'G', 'B'),
+    windows = fourCC('W', 'i', 'n', ' '),
+    profile_linked = fourCC('L', 'I', 'N', 'K'),
+    profile_embedded = fourCC('M', 'B', 'E', 'D'),
+};
+
+const bmp_identifier = "BM";
+
+const FileHeader = extern struct {
     identifier: [2]u8,
     filesize: u32 align(1),
     reserved: u32 align(1),
     image_offset: u32 align(1),
 };
 
-const DibHeader = struct {
-    header_size: u32 align(1),
-    width: i32 align(1),
-    height: i32 align(1),
+const BmpHeader = extern struct {
+    header_size: u32,
+    width: i32,
+    height: i32,
     n_color_planes: u16 align(1),
     bpp: u16 align(1),
-    compression_type: CompressionType align(1),
-    image_size: u32 align(1),
-    x_pixels_per_meter: i32 align(1),
-    y_pixels_per_meter: i32 align(1),
-    n_colors: u32 align(1),
-    n_important_colors: u32 align(1),
-    red_mask: u32 align(1),
-    green_mask: u32 align(1),
-    blue_mask: u32 align(1),
-    alpha_mask: u32 align(1),
-    color_space: u32 align(1),
+    compression_type: CompressionType,
+    image_size: u32,
+    x_pixels_per_meter: u32,
+    y_pixels_per_meter: u32,
+    n_colors: u32,
+    n_important_colors: u32,
+    red_mask: u32,
+    green_mask: u32,
+    blue_mask: u32,
+    alpha_mask: u32,
+    color_space: ColorSpace,
 };
-
-fn supportedCompression(compression_type: CompressionType) bool {
-    return compression_type == .bitfields or compression_type == .rgb;
-}
 
 fn fourCC(comptime a: u8, comptime b: u8, comptime c: u8, comptime d: u8) u32 {
     return (@as(u32, a) << 24) | (@as(u32, b) << 16) | (@as(u32, c) << 8) | @as(u32, d);
+}
+
+fn typeErasedRead(self: *const anyopaque, buffer: []u8) anyerror!usize {
+    const ptr: *std.io.BufferedReader(8 * 1024, std.io.StreamSource.Reader) = @constCast(@alignCast(@ptrCast(self)));
+    return std.io.BufferedReader(8 * 1024, std.io.StreamSource.Reader).read(ptr, buffer);
 }
 
 pub fn load(allocator: mem.Allocator, filename: []const u8, flip_vertically: bool) !Image {
@@ -51,58 +62,89 @@ pub fn load(allocator: mem.Allocator, filename: []const u8, flip_vertically: boo
 
     const image = try std.fs.cwd().openFile(filename, .{});
     defer image.close();
-    const image_data = try image.readToEndAlloc(allocator, std.math.maxInt(usize));
+    var stream = std.io.StreamSource{ .file = image };
+    var buffered_reader = std.io.BufferedReader(8 * 1024, std.io.StreamSource.Reader){ .unbuffered_reader = stream.reader() };
+    var reader = std.io.AnyReader{ .context = @ptrCast(&buffered_reader), .readFn = typeErasedRead };
 
-    const bmp_header: *const Header = @alignCast(@ptrCast(image_data.ptr));
-    const dib_header: *const DibHeader = @alignCast(@ptrCast(image_data.ptr + @sizeOf(Header)));
+    const file_header: FileHeader = try reader.readStruct(FileHeader);
+    const bmp_header: BmpHeader = try reader.readStruct(BmpHeader);
 
-    if (!mem.eql(u8, &bmp_header.identifier, &[2]u8{ 'B', 'M' }))
+    if (bmp_header.header_size < @sizeOf(BmpHeader))
+        return error.UnsupportedHeaderVersion;
+
+    if (!mem.eql(u8, &file_header.identifier, bmp_identifier))
         return error.InvalidBmpFile;
 
-    if (dib_header.bpp != 32 and dib_header.bpp != 24)
+    if (bmp_header.bpp != 32 and bmp_header.bpp != 24)
         return error.UnsupportedBppFormat;
 
-    if (dib_header.n_colors != 0)
+    if (bmp_header.n_colors != 0)
         return error.UnsupportedColorPalette;
 
-    const srgb_ident = comptime fourCC('s', 'R', 'G', 'B');
-    const win_ident = comptime fourCC('W', 'i', 'n', ' ');
-    const is_srgb = dib_header.color_space == srgb_ident or dib_header.color_space == win_ident;
-    if (!is_srgb)
+    if (bmp_header.color_space != .srgb and bmp_header.color_space != .windows)
         return error.UnsupportedColorSpace;
 
-    var flipped = dib_header.height < 0;
-    const pixel_width = dib_header.bpp / 8;
-    const image_size = dib_header.bpp * @divTrunc(dib_header.width, 32) * 4;
+    var flipped = bmp_header.height < 0;
+    const pixel_width = bmp_header.bpp / 8;
+    _ = pixel_width;
+    const image_size = bmp_header.bpp * @divTrunc(bmp_header.width, 32) * 4;
     const stride = std.mem.alignForward(u32, @as(u32, @intCast(image_size)), @alignOf(u32));
+    _ = stride;
 
-    const alloc_size = dib_header.width * 4 * dib_header.height;
+    const alloc_size = bmp_header.width * 4 * bmp_header.height;
     var pixels = try allocator.alloc(u32, @as(usize, @intCast(alloc_size)));
     var out_image = Image{
         .allocator = allocator,
         .pixels = pixels,
-        .width = @intCast(dib_header.width),
-        .height = if (flipped) @intCast(-dib_header.height) else @intCast(dib_header.height),
-        .bpp = dib_header.bpp,
+        .width = @intCast(bmp_header.width),
+        .height = if (flipped) @intCast(-bmp_header.height) else @intCast(bmp_header.height),
+        .bpp = bmp_header.bpp,
     };
-    var current_row = image_data.ptr + bmp_header.image_offset;
-    if (flip_vertically) flipped = !flipped;
-    if (flipped) current_row += stride * (out_image.height - 1);
 
-    switch (dib_header.compression_type) {
+    var y: u32 = if (flipped) out_image.height - 1 else 0;
+    if (flip_vertically) flipped = !flipped;
+    const increment = if (flipped) @as(i32, -1) else @as(i32, 1);
+
+    switch (bmp_header.compression_type) {
         .rgb => {
-            for (0..out_image.height) |j| {
-                for (0..out_image.width) |i| {
-                    const b = current_row[i * pixel_width];
-                    const g = current_row[i * pixel_width + 1];
-                    const r = current_row[i * pixel_width + 2];
+            for (0..out_image.height) |_| {
+                const scanline = y * out_image.width;
+                var x: u32 = 0;
+                for (0..out_image.width) |_| {
+                    const b = try reader.readByte();
+                    const g = try reader.readByte();
+                    const r = try reader.readByte();
                     const a = 0xFF;
                     const pixel: u32 = (@as(u32, a) << 24) | (@as(u32, b) << 16) | (@as(u32, g) << 8) | @as(u32, r);
-                    out_image.pixels[j * out_image.width + i] = pixel;
+                    out_image.pixels[scanline + x] = pixel;
+                    x += 1;
                 }
+                y += @bitCast(increment);
             }
         },
-        .bitfields => {},
+        .bitfields => {
+            const r_shift: u5 = @truncate(@ctz(bmp_header.red_mask));
+            const g_shift: u5 = @truncate(@ctz(bmp_header.green_mask));
+            const b_shift: u5 = @truncate(@ctz(bmp_header.blue_mask));
+            const a_shift: u5 = @truncate(@ctz(bmp_header.alpha_mask));
+
+            for (0..out_image.height) |_| {
+                const scanline = y * out_image.width;
+                var x: u32 = 0;
+                for (0..out_image.width) |_| {
+                    const value = try reader.readIntLittle(u32);
+                    const r = (value & bmp_header.red_mask) >> r_shift;
+                    const g = (value & bmp_header.green_mask) >> g_shift;
+                    const b = (value & bmp_header.blue_mask) >> b_shift;
+                    const a = (value & bmp_header.alpha_mask) >> a_shift;
+
+                    const pixel = a << 24 | b << 16 | g << 8 | r;
+                    out_image.pixels[scanline + x] = pixel;
+                    x += 1;
+                }
+                y += @bitCast(increment);
+            }
+        },
         else => return error.UnsupportedCompressionFormat,
     }
 

@@ -153,6 +153,8 @@ pub fn main() !u8 {
     defer shader_pbr.deinit();
     const shader_light = try Shader.init(allocator, "shaders/light.vert", "shaders/light.frag");
     defer shader_light.deinit();
+    const shader_debug = try Shader.init(allocator, "shaders/debug.vert", "shaders/debug.frag");
+    defer shader_debug.deinit();
 
     var model3d = try obj.parseObj(allocator, args[1]);
     model3d.loadOnGpu();
@@ -196,6 +198,7 @@ pub fn main() !u8 {
     matrices_uniform.bindRange(0);
     shader_pbr.setUniformBlock("matrices", 0);
     shader_light.setUniformBlock("matrices", 0);
+    shader_debug.setUniformBlock("matrices", 0);
 
     const light_color = math.Vec3{ 300, 300, 300 };
     const lights = [_]PointLight{
@@ -239,9 +242,13 @@ pub fn main() !u8 {
         }
 
         {
+            shader_debug.use();
             var model = math.mat.identity(math.Mat4);
-            model = math.mat.translate(&model, .{ 0, 0, 2 });
-            shader_light.setUniform(math.Mat4, "model", model);
+            model = math.mat.translate(&model, .{ 10, 0, 2 });
+            shader_debug.setUniform(math.Mat4, "model", model);
+            c.glActiveTexture(c.GL_TEXTURE0);
+            c.glBindTexture(c.GL_TEXTURE_2D, tex_id);
+            shader_debug.setUniform(i32, "tex", 0);
             debug_mesh.draw();
         }
 
@@ -274,8 +281,8 @@ pub fn main() !u8 {
 
                 var model = math.mat.identity(math.Mat4);
                 model = math.mat.translate(&model, .{
-                    (col_f32 - cols_f32 / 2.0) * spacing,
-                    (row_f32 - rows_f32 / 2.0) * spacing,
+                    (col_f32 - cols_f32 / 2.0) * spacing + 1,
+                    (row_f32 - rows_f32 / 2.0) * spacing + 1,
                     0.0,
                 });
                 model = math.mat.scaleScalar(&model, 0.75);
