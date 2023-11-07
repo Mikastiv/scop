@@ -43,9 +43,7 @@ fn supportedCompression(compression_type: CompressionType) bool {
 }
 
 fn fourCC(comptime a: u8, comptime b: u8, comptime c: u8, comptime d: u8) u32 {
-    var code = [4]u8{ a, b, c, d };
-    mem.reverse(u8, &code);
-    return mem.bytesAsValue(u32, &code).*;
+    return (@as(u32, a) << 24) | (@as(u32, b) << 16) | (@as(u32, c) << 8) | @as(u32, d);
 }
 
 pub fn load(allocator: mem.Allocator, filename: []const u8, flip_vertically: bool) !Image {
@@ -67,8 +65,8 @@ pub fn load(allocator: mem.Allocator, filename: []const u8, flip_vertically: boo
     if (dib_header.n_colors != 0)
         return error.UnsupportedColorPalette;
 
-    const srgb_ident = fourCC('s', 'R', 'G', 'B');
-    const win_ident = fourCC('W', 'i', 'n', ' ');
+    const srgb_ident = comptime fourCC('s', 'R', 'G', 'B');
+    const win_ident = comptime fourCC('W', 'i', 'n', ' ');
     const is_srgb = dib_header.color_space == srgb_ident or dib_header.color_space == win_ident;
     if (!is_srgb)
         return error.UnsupportedColorSpace;

@@ -10,6 +10,7 @@ const ico = @import("icosphere.zig");
 const PointLight = @import("PointLight.zig");
 const Camera = @import("Camera.zig");
 const bmp = @import("bmp.zig");
+const debug = @import("debug.zig");
 
 const default_window_width = 800;
 const default_window_height = 600;
@@ -128,7 +129,9 @@ pub fn main() !u8 {
     const args = try std.process.argsAlloc(allocator);
     defer allocator.free(args);
 
-    if (!try validateArgs(args)) return 1;
+    if (!try validateArgs(args)) {
+        return 1;
+    }
 
     if (!glfw.init(.{})) {
         std.log.err("failed to initialize GLFW: {?s}", .{glfw.getErrorString()});
@@ -155,8 +158,31 @@ pub fn main() !u8 {
     model3d.loadOnGpu();
 
     const image = try bmp.load(allocator, "res/materials/rustediron/rustediron2_basecolor.bmp", false);
+    defer image.deinit();
+    var debug_mesh = try debug.createDebugPlane(allocator);
+    defer debug_mesh.deinit();
+    debug_mesh.loadOnGpu();
+    var tex_id: u32 = undefined;
+    c.glGenTextures(1, &tex_id);
+    c.glBindTexture(c.GL_TEXTURE_2D, tex_id);
+    c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_WRAP_S, c.GL_REPEAT);
+    c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_WRAP_T, c.GL_REPEAT);
+    c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MIN_FILTER, c.GL_LINEAR);
+    c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MAG_FILTER, c.GL_LINEAR);
+    c.glTexImage2D(
+        c.GL_TEXTURE_2D,
+        0,
+        c.GL_RGB,
+        @intCast(image.width),
+        @intCast(image.height),
+        0,
+        c.GL_RGBA,
+        c.GL_UNSIGNED_BYTE,
+        @ptrCast(image.pixels.ptr),
+    );
+    c.glGenerateMipmap(c.GL_TEXTURE_2D);
+
     c.glEnable(c.GL_MULTISAMPLE);
-    _ = image;
     c.glEnable(c.GL_DEPTH_TEST);
     c.glEnable(c.GL_CULL_FACE);
 
@@ -210,6 +236,13 @@ pub fn main() !u8 {
             model = math.mat.scaleScalar(&model, 0.3);
             shader_light.setUniform(math.Mat4, "model", model);
             sphere.draw();
+        }
+
+        {
+            var model = math.mat.identity(math.Mat4);
+            model = math.mat.translate(&model, .{ 0, 0, 2 });
+            shader_light.setUniform(math.Mat4, "model", model);
+            debug_mesh.draw();
         }
 
         shader_pbr.use();
