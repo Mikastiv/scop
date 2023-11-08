@@ -35,6 +35,7 @@ fn loadColorSourceOnGpu(source: *ColorSource, allocator: std.mem.Allocator) !voi
             pixels[0] = a << 24 | b << 16 | g << 8 | r;
             const image = Image{ .allocator = allocator, .bpp = 32, .width = 1, .height = 1, .pixels = pixels };
             source.* = .{ .texture = .{ .image = image } };
+            source.texture.loadOnGpu();
         },
         .texture => |*tex| tex.loadOnGpu(),
     }
