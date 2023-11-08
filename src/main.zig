@@ -26,6 +26,9 @@ var last_mouse_pos = math.Vec2{ default_window_width / 2.0, default_window_heigh
 const sensitivity = 0.075;
 var fov: f32 = 45.0;
 
+const model_rotation_speed = 1.0;
+var model_angles = math.Vec3{ 0, 0, 0 };
+
 fn errorCallback(error_code: glfw.ErrorCode, description: [:0]const u8) void {
     std.log.err("glfw: {}: {s}\n", .{ error_code, description });
 }
@@ -109,6 +112,13 @@ fn createWindow() !glfw.Window {
     return window;
 }
 
+fn adjustAngle(angle: f32) f32 {
+    var x = angle;
+    if (x > std.math.tau) x -= std.math.tau;
+    if (x < 0) x += std.math.tau;
+    return x;
+}
+
 fn processInput(window: glfw.Window, cam: *Camera, dt: f32) void {
     const speed = cam.speed * dt;
     const d_forward = math.vec.mul(cam.direction, speed);
@@ -119,6 +129,15 @@ fn processInput(window: glfw.Window, cam: *Camera, dt: f32) void {
     if (window.getKey(.a) == .press) cam.pos = math.vec.sub(cam.pos, d_right);
     if (window.getKey(.space) == .press) cam.pos[1] += speed;
     if (window.getKey(.left_shift) == .press) cam.pos[1] -= speed;
+    if (window.getKey(.r) == .press) model_angles[0] -= model_rotation_speed * dt;
+    if (window.getKey(.t) == .press) model_angles[0] += model_rotation_speed * dt;
+    if (window.getKey(.f) == .press) model_angles[1] -= model_rotation_speed * dt;
+    if (window.getKey(.g) == .press) model_angles[1] += model_rotation_speed * dt;
+    if (window.getKey(.v) == .press) model_angles[2] -= model_rotation_speed * dt;
+    if (window.getKey(.b) == .press) model_angles[2] += model_rotation_speed * dt;
+    model_angles[0] = adjustAngle(model_angles[0]);
+    model_angles[1] = adjustAngle(model_angles[1]);
+    model_angles[2] = adjustAngle(model_angles[2]);
 }
 
 pub fn main() !u8 {
@@ -258,6 +277,9 @@ pub fn main() !u8 {
 
         var model = math.mat.identity(math.Mat4);
         model = math.mat.scaleScalar(&model, 0.75);
+        model = math.mat.rotate(&model, model_angles[0], .{ 1, 0, 0 });
+        model = math.mat.rotate(&model, model_angles[1], .{ 0, 1, 0 });
+        model = math.mat.rotate(&model, model_angles[2], .{ 0, 0, 1 });
         shader_pbr.setUniform(math.Mat4, "model", model);
         // transpose, inverse
         sphere.draw();
