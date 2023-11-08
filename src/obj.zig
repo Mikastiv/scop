@@ -7,6 +7,7 @@ const Model = @import("Model.zig");
 const Vertex = @import("Vertex.zig");
 const Mesh = @import("Mesh.zig");
 const Material = @import("Material.zig");
+const bmp = @import("bmp.zig");
 
 const Triangle = struct {
     vertices: [3]u32,
@@ -377,16 +378,26 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
 const MaterialElementType = enum {
     new_material,
     ambient_color,
+    ambient_map,
     diffuse_color,
+    diffuse_map,
     specular_color,
+    specular_map,
+    roughness_map,
+    normal_map,
     comment,
     unknown,
 
     fn fromStr(str: []const u8) MaterialElementType {
         if (std.mem.eql(u8, str, "newmtl")) return .new_material;
         if (std.mem.eql(u8, str, "Ka")) return .ambient_color;
+        if (std.mem.eql(u8, str, "map_Ka")) return .ambient_map;
         if (std.mem.eql(u8, str, "Kd")) return .diffuse_color;
+        if (std.mem.eql(u8, str, "map_Kd")) return .diffuse_map;
         if (std.mem.eql(u8, str, "Ks")) return .specular_color;
+        if (std.mem.eql(u8, str, "map_Ks")) return .specular_map;
+        if (std.mem.eql(u8, str, "map_Kr")) return .roughness_map;
+        if (std.mem.eql(u8, str, "map_Bump")) return .normal_map;
         if (std.mem.eql(u8, str, "#")) return .comment;
         return .unknown;
     }
@@ -419,16 +430,44 @@ fn loadMaterials(allocator: std.mem.Allocator, dirname: []const u8, filename: []
 
         switch (token_type) {
             .new_material => {
-                try materials.append(Material{});
+                try materials.append(Material.init("Placeholder"));
                 current_material = &materials.items[0];
                 current_material.?.name = std.mem.trim(u8, tokens.rest(), &std.ascii.whitespace);
             },
-            .ambient_color => current_material.?.ambient = parseVec(Vec3, tokens) catch
-                return makeError("error reading ambient color", line_number),
-            .diffuse_color => current_material.?.diffuse = parseVec(Vec3, tokens) catch
-                return makeError("error reading diffuse color", line_number),
-            .specular_color => current_material.?.specular = parseVec(Vec3, tokens) catch
-                return makeError("error reading specular color", line_number),
+            .ambient_color => {
+                const v = parseVec(Vec3, tokens) catch
+                    return makeError("error reading ambient color", line_number);
+
+                current_material.?.ambient = .{ .rgb = v };
+            },
+            .diffuse_color => {
+                const v = parseVec(Vec3, tokens) catch
+                    return makeError("error reading diffuse color", line_number);
+
+                current_material.?.albedo = .{ .rgb = v };
+            },
+            .specular_color => {
+                const v = parseVec(Vec3, tokens) catch
+                    return makeError("error reading specular color", line_number);
+
+                current_material.?.specular = .{ .rgb = v };
+            },
+            .ambient_map, .diffuse_map, .specular_map, .roughness_map, .normal_map => {
+                const map_filename = tokens.rest();
+                if (!std.mem.endsWith(u8, map_filename, ".bmp"))
+                    return makeError("unsupported image file format", line_number);
+                const map_fullpath = try std.mem.join(allocator, "/", &.{ dirname, map_filename });
+                const image = try bmp.load(allocator, map_fullpath, false);
+
+                switch (token_type) {
+                    .ambient_map => current_material.?.ambient = .{ .texture = .{ .image = image } },
+                    .diffuse_map => current_material.?.albedo = .{ .texture = .{ .image = image } },
+                    .specular_map => current_material.?.specular = .{ .texture = .{ .image = image } },
+                    .roughness_map => current_material.?.roughness = .{ .texture = .{ .image = image } },
+                    .normal_map => current_material.?.normal_map = .{ .image = image },
+                    else => unreachable,
+                }
+            },
             .comment => {},
             .unknown => std.log.warn("unknown token \"{s}\" (line {d})", .{ token, line_number }),
         }

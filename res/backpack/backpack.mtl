@@ -10,8 +10,8 @@ Ke 0.0 0.0 0.0
 Ni 1.450000
 d 1.000000
 illum 2
-map_Ka diffuse.bmp
+map_Ka ao.bmp
 map_Kd diffuse.bmp
 map_Bump normal.bmp
 map_Ks specular.bmp
-
+map_Kr roughness.bmp

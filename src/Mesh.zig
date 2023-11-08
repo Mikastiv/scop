@@ -16,9 +16,7 @@ vertices: std.ArrayList(Vertex),
 indices: std.ArrayList(u16),
 material: *const Material,
 
-const default_material = Material{
-    .name = "default",
-};
+const default_material = Material.init("default");
 
 pub fn init(allocator: std.mem.Allocator) Self {
     return .{

@@ -20,6 +20,9 @@ pub fn deinit(self: *const Self) void {
         mesh.deinit();
     }
     self.meshes.deinit();
+    for (self.materials.items) |material| {
+        material.deinit(self.allocator);
+    }
     self.materials.deinit();
 }
 

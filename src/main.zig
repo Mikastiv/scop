@@ -26,7 +26,7 @@ var last_mouse_pos = math.Vec2{ default_window_width / 2.0, default_window_heigh
 const sensitivity = 0.075;
 var fov: f32 = 45.0;
 
-const model_rotation_speed = 1.0;
+const model_rotation_speed = 2.0;
 var model_angles = math.Vec3{ 0, 0, 0 };
 
 fn errorCallback(error_code: glfw.ErrorCode, description: [:0]const u8) void {
