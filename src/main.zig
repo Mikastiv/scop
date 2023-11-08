@@ -156,6 +156,8 @@ pub fn main() !u8 {
     defer shader_light.deinit();
     const shader_debug = try Shader.init(allocator, "shaders/debug.vert", "shaders/debug.frag");
     defer shader_debug.deinit();
+    const shader_tri_colored = try Shader.init(allocator, "shaders/tri_color.vert", "shaders/tri_color.frag");
+    defer shader_tri_colored.deinit();
 
     var model3d = try obj.parseObj(allocator, args[1]);
     model3d.loadOnGpu();
@@ -191,6 +193,7 @@ pub fn main() !u8 {
     matrices_uniform.bindRange(0);
     shader_pbr.setUniformBlock("matrices", 0);
     shader_light.setUniformBlock("matrices", 0);
+    shader_tri_colored.setUniformBlock("matrices", 0);
 
     const light_color = math.Vec3{ 300, 300, 300 };
     const lights = [_]PointLight{
@@ -253,9 +256,10 @@ pub fn main() !u8 {
         roughness.bind(c.GL_TEXTURE3);
         shader_pbr.setUniform(i32, "roughness_map", 3);
 
+        shader_tri_colored.use();
         var model = math.mat.identity(math.Mat4);
         model = math.mat.scaleScalar(&model, 0.75);
-        shader_pbr.setUniform(math.Mat4, "model", model);
+        shader_tri_colored.setUniform(math.Mat4, "model", model);
         // transpose, inverse
         sphere.draw(c.GL_TRIANGLE_STRIP);
 
