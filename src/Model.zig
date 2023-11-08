@@ -26,9 +26,12 @@ pub fn deinit(self: *const Self) void {
     self.materials.deinit();
 }
 
-pub fn loadOnGpu(self: *Self) void {
+pub fn loadOnGpu(self: *Self) !void {
     for (self.meshes.items) |*mesh| {
         mesh.loadOnGpu();
+    }
+    for (self.materials.items) |*material| {
+        try material.loadOnGpu(self.allocator);
     }
 }
 

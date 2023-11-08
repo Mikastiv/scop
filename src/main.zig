@@ -176,7 +176,7 @@ pub fn main() !u8 {
     defer shader_tri_colored.deinit();
 
     var model3d = try obj.parseObj(allocator, args[1]);
-    model3d.loadOnGpu();
+    try model3d.loadOnGpu();
 
     var debug_plane = try DebugPlane.init(allocator, "res/materials/rustediron/rustediron2_basecolor.bmp");
     defer debug_plane.deinit();
