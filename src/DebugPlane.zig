@@ -60,7 +60,7 @@ pub fn init(allocator: std.mem.Allocator, image_file: []const u8) !Self {
 
     const image = try bmp.load(allocator, image_file, false);
     defer allocator.free(image.pixels);
-    const texture = Texture.init(image);
+    const texture = Texture{ .image = image };
 
     return .{
         .mesh = mesh,

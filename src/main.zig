@@ -181,7 +181,7 @@ pub fn main() !u8 {
     var model3d = try obj.parseObj(allocator, args[1]);
     model3d.loadOnGpu();
 
-    const debug_plane = try DebugPlane.init(allocator, "res/materials/rustediron/rustediron2_basecolor.bmp");
+    var debug_plane = try DebugPlane.init(allocator, "res/materials/rustediron/rustediron2_basecolor.bmp");
     defer debug_plane.deinit();
 
     const albdeo_img = try bmp.load(allocator, "res/materials/rustediron/rustediron2_basecolor.bmp", false);
@@ -193,10 +193,14 @@ pub fn main() !u8 {
     const roughness_img = try bmp.load(allocator, "res/materials/rustediron/rustediron2_roughness.bmp", false);
     defer roughness_img.deinit();
 
-    const albedo = Texture.init(albdeo_img);
-    const metallic = Texture.init(metallic_img);
-    const normal = Texture.init(normal_img);
-    const roughness = Texture.init(roughness_img);
+    var albedo = Texture{ .image = albdeo_img };
+    albedo.loadOnGpu();
+    var metallic = Texture{ .image = metallic_img };
+    metallic.loadOnGpu();
+    var normal = Texture{ .image = normal_img };
+    normal.loadOnGpu();
+    var roughness = Texture{ .image = roughness_img };
+    roughness.loadOnGpu();
 
     c.glEnable(c.GL_MULTISAMPLE);
     c.glEnable(c.GL_DEPTH_TEST);
@@ -284,7 +288,7 @@ pub fn main() !u8 {
         // transpose, inverse
         sphere.draw();
 
-        //debug_plane.draw();
+        // debug_plane.draw();
 
         window.swapBuffers();
         glfw.pollEvents();
