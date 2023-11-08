@@ -11,6 +11,7 @@ name: []const u8,
 vao: c.GLuint,
 vertex_buffer: GLBuffer,
 index_buffer: GLBuffer,
+primitive: c.GLenum,
 vertices: std.ArrayList(Vertex),
 indices: std.ArrayList(u16),
 material: *const Material,
@@ -26,6 +27,7 @@ pub fn init(allocator: std.mem.Allocator) Self {
         .vao = c.GL_INVALID_VALUE,
         .vertex_buffer = GLBuffer.invalid_buffer,
         .index_buffer = GLBuffer.invalid_buffer,
+        .primitive = c.GL_TRIANGLES,
         .vertices = std.ArrayList(Vertex).init(allocator),
         .indices = std.ArrayList(u16).init(allocator),
         .material = &default_material,
@@ -60,8 +62,8 @@ pub fn loadOnGpu(self: *Self) void {
     self.index_buffer.unbind();
 }
 
-pub fn draw(self: *const Self, primitive: c.GLenum) void {
+pub fn draw(self: *const Self) void {
     c.glBindVertexArray(self.vao);
-    c.glDrawElements(primitive, @intCast(self.indices.items.len), c.GL_UNSIGNED_SHORT, null);
+    c.glDrawElements(self.primitive, @intCast(self.indices.items.len), c.GL_UNSIGNED_SHORT, null);
     c.glBindVertexArray(0);
 }

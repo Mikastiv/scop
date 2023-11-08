@@ -2,6 +2,7 @@ const std = @import("std");
 const Mesh = @import("Mesh.zig");
 const Vertex = @import("Vertex.zig");
 const math = @import("math.zig");
+const c = @import("c.zig");
 
 fn addVertex(vertices: *std.ArrayList(Vertex), x: f32, y: f32, z: f32) !void {
     const pos = math.vec.normalize(math.Vec3{ x, y, z });
@@ -82,29 +83,29 @@ pub fn generateIcosphere(allocator: std.mem.Allocator, tessellation: u32) !Mesh 
 
         var idx: u32 = 0;
         while (idx < mesh.indices.items.len) : (idx += 3) {
-            const a = try addMiddlePoint(
+            const p1 = try addMiddlePoint(
                 &idx_cache,
                 &mesh.vertices,
                 mesh.indices.items[idx],
                 mesh.indices.items[idx + 1],
             );
-            const b = try addMiddlePoint(
+            const p2 = try addMiddlePoint(
                 &idx_cache,
                 &mesh.vertices,
                 mesh.indices.items[idx + 1],
                 mesh.indices.items[idx + 2],
             );
-            const c = try addMiddlePoint(
+            const p3 = try addMiddlePoint(
                 &idx_cache,
                 &mesh.vertices,
                 mesh.indices.items[idx + 2],
                 mesh.indices.items[idx],
             );
 
-            try new_idxs.appendSlice(&.{ mesh.indices.items[idx], a, c });
-            try new_idxs.appendSlice(&.{ mesh.indices.items[idx + 1], b, a });
-            try new_idxs.appendSlice(&.{ mesh.indices.items[idx + 2], c, b });
-            try new_idxs.appendSlice(&.{ a, b, c });
+            try new_idxs.appendSlice(&.{ mesh.indices.items[idx], p1, p3 });
+            try new_idxs.appendSlice(&.{ mesh.indices.items[idx + 1], p2, p1 });
+            try new_idxs.appendSlice(&.{ mesh.indices.items[idx + 2], p3, p2 });
+            try new_idxs.appendSlice(&.{ p1, p2, p3 });
         }
 
         mesh.indices.deinit();
@@ -116,6 +117,7 @@ pub fn generateIcosphere(allocator: std.mem.Allocator, tessellation: u32) !Mesh 
 
 pub fn generateSphere(allocator: std.mem.Allocator, latitude_segments: u32, longitude_segments: u32) !Mesh {
     var mesh = Mesh.init(allocator);
+    mesh.primitive = c.GL_TRIANGLE_STRIP;
 
     for (0..longitude_segments + 1) |x| {
         for (0..latitude_segments + 1) |y| {
@@ -129,8 +131,8 @@ pub fn generateSphere(allocator: std.mem.Allocator, latitude_segments: u32, long
                 .pos = .{ x_pos, y_pos, z_pos },
                 .normal = .{ x_pos, y_pos, z_pos },
                 .uv = .{ x_segment, y_segment },
-                .tangent = .{ x_pos, y_pos, z_pos },
-                .bitangent = .{ x_pos, y_pos, z_pos },
+                .tangent = .{ x_pos, y_pos, z_pos }, // TODO: proper tangent
+                .bitangent = .{ x_pos, y_pos, z_pos }, // TODO: proper bitangent
             });
         }
     }
