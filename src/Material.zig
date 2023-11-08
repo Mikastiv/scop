@@ -3,6 +3,8 @@ const Self = @This();
 const Vec3 = @import("math.zig").Vec3;
 const Texture = @import("Texture.zig");
 
+pub const default = init("default");
+
 pub const ColorSource = union(enum) {
     rgb: Vec3,
     texture: Texture,

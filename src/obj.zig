@@ -190,7 +190,6 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
     defer file.close();
     const dirname = std.fs.path.dirname(filename) orelse ".";
     const file_content = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
-    defer allocator.free(file_content);
 
     var vertices = std.ArrayList(Vec3).init(allocator);
     defer vertices.deinit();
@@ -203,7 +202,7 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
     defer unique_vertices.deinit();
 
     var model = Model.init(allocator);
-    try model.meshes.append(Mesh.init(allocator));
+    try model.meshes.append(Mesh.init(allocator, &Material.default));
     errdefer model.deinit();
 
     const current_mesh = &model.meshes.items[0];
@@ -359,7 +358,7 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
             },
             .object => current_mesh.name = std.mem.trim(u8, tokens.rest(), &std.ascii.whitespace),
             .group => {},
-            .use_material => {},
+            .use_material => current_mesh.material_name = std.mem.trim(u8, tokens.rest(), &std.ascii.whitespace),
             .material_lib => {
                 const mtl_filename = std.mem.trim(u8, tokens.rest(), &std.ascii.whitespace);
                 const new_materials = try loadMaterials(allocator, dirname, mtl_filename);
@@ -371,6 +370,8 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
             .unknown => std.log.warn("unknown token \"{s}\" (line {d})", .{ token, line_number }),
         }
     }
+
+    try resolveMaterials(&model);
 
     return model;
 }
@@ -409,7 +410,6 @@ fn loadMaterials(allocator: std.mem.Allocator, dirname: []const u8, filename: []
     const file = try std.fs.cwd().openFile(filepath, .{});
     defer file.close();
     const file_content = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
-    defer allocator.free(file_content);
 
     var materials = std.ArrayList(Material).init(allocator);
 
@@ -474,4 +474,19 @@ fn loadMaterials(allocator: std.mem.Allocator, dirname: []const u8, filename: []
     }
 
     return materials.toOwnedSlice();
+}
+
+fn findMaterialByName(materials: []const Material, name: []const u8) ?*const Material {
+    for (materials) |*m| {
+        if (std.mem.eql(u8, m.name, name)) return m;
+    }
+    return null;
+}
+
+fn resolveMaterials(model: *Model) !void {
+    for (model.meshes.items) |*mesh| {
+        const name = mesh.material_name orelse continue;
+        const material = findMaterialByName(model.materials.items, name);
+        if (material) |m| mesh.material = m;
+    }
 }

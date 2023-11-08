@@ -3,6 +3,7 @@ const Mesh = @import("Mesh.zig");
 const Vertex = @import("Vertex.zig");
 const math = @import("math.zig");
 const c = @import("c.zig");
+const Material = @import("Material.zig");
 
 fn addVertex(vertices: *std.ArrayList(Vertex), x: f32, y: f32, z: f32) !void {
     const pos = math.vec.normalize(math.Vec3{ x, y, z });
@@ -32,7 +33,7 @@ fn addMiddlePoint(
 }
 
 pub fn generateIcosphere(allocator: std.mem.Allocator, tessellation: u32) !Mesh {
-    var mesh = Mesh.init(allocator);
+    var mesh = Mesh.init(allocator, &Material.default);
 
     const t = (1.0 + @sqrt(5.0)) / 2.0;
 
@@ -116,7 +117,7 @@ pub fn generateIcosphere(allocator: std.mem.Allocator, tessellation: u32) !Mesh 
 }
 
 pub fn generateSphere(allocator: std.mem.Allocator, latitude_segments: u32, longitude_segments: u32) !Mesh {
-    var mesh = Mesh.init(allocator);
+    var mesh = Mesh.init(allocator, &Material.default);
     mesh.primitive = c.GL_TRIANGLE_STRIP;
 
     for (0..longitude_segments + 1) |x| {

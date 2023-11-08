@@ -166,9 +166,6 @@ pub fn main() !u8 {
 
     window.setInputMode(.cursor, .disabled);
 
-    // const window_size = window.getFramebufferSize();
-    // c.glViewport(0, 0, @intCast(window_size.width), @intCast(window_size.height));
-
     const shader_pbr = try Shader.init(allocator, "shaders/pbr.vert", "shaders/pbr.frag");
     defer shader_pbr.deinit();
     const shader_light = try Shader.init(allocator, "shaders/light.vert", "shaders/light.frag");

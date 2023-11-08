@@ -15,10 +15,9 @@ primitive: c.GLenum,
 vertices: std.ArrayList(Vertex),
 indices: std.ArrayList(u16),
 material: *const Material,
+material_name: ?[]const u8 = null,
 
-const default_material = Material.init("default");
-
-pub fn init(allocator: std.mem.Allocator) Self {
+pub fn init(allocator: std.mem.Allocator, material: *const Material) Self {
     return .{
         .allocator = allocator,
         .name = "",
@@ -28,7 +27,7 @@ pub fn init(allocator: std.mem.Allocator) Self {
         .primitive = c.GL_TRIANGLES,
         .vertices = std.ArrayList(Vertex).init(allocator),
         .indices = std.ArrayList(u16).init(allocator),
-        .material = &default_material,
+        .material = material,
     };
 }
 

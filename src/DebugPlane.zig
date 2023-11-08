@@ -7,13 +7,14 @@ const Texture = @import("Texture.zig");
 const bmp = @import("bmp.zig");
 const math = @import("math.zig");
 const c = @import("c.zig");
+const Material = @import("Material.zig");
 
 mesh: Mesh,
 shader: Shader,
 texture: Texture,
 
 pub fn init(allocator: std.mem.Allocator, image_file: []const u8) !Self {
-    var mesh = Mesh.init(allocator);
+    var mesh = Mesh.init(allocator, &Material.default);
     errdefer mesh.deinit();
 
     const v0 = Vertex{
