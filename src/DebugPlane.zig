@@ -61,7 +61,8 @@ pub fn init(allocator: std.mem.Allocator, image_file: []const u8) !Self {
 
     const image = try bmp.load(allocator, image_file, false);
     defer allocator.free(image.pixels);
-    const texture = Texture{ .image = image };
+    var texture = Texture{ .image = image };
+    texture.loadOnGpu();
 
     return .{
         .mesh = mesh,
@@ -79,8 +80,8 @@ pub fn draw(self: *const Self) void {
     self.shader.use();
 
     var model = math.mat.identity(math.Mat4);
-    model = math.mat.translate(&model, .{ -0.5, 0.5, 0 });
-    model = math.mat.scaleScalar(&model, 0.5);
+    // model = math.mat.translate(&model, .{ -0.5, 0.5, 0 });
+    // model = math.mat.scaleScalar(&model, 0.5);
     self.shader.setUniform(math.Mat4, "model", model);
 
     self.texture.bind(c.GL_TEXTURE0);

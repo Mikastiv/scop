@@ -307,9 +307,9 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
                     // normals
                     var vns: [3]Vec3 = undefined;
                     if (containsNormals(face_type)) {
-                        vns[0] = normals.items[0];
-                        vns[1] = normals.items[1];
-                        vns[2] = normals.items[2];
+                        vns[0] = normals.items[vn_idxs[0]];
+                        vns[1] = normals.items[vn_idxs[1]];
+                        vns[2] = normals.items[vn_idxs[2]];
                     } else {
                         const a = vec.sub(vs[1], vs[0]);
                         const b = vec.sub(vs[2], vs[0]);
@@ -359,9 +359,10 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
             .object => current_mesh.name = std.mem.trim(u8, tokens.rest(), &std.ascii.whitespace),
             .group => {},
             .use_material => {
-                // if (current_mesh == &model.meshes.items[0]) try model.meshes.append(Mesh.init(allocator, &Material.default));
-                // current_mesh = &model.meshes.items[model.meshes.items.len - 1];
+                if (current_mesh.vertices.items.len != 0) try model.meshes.append(Mesh.init(allocator, &Material.default));
+                current_mesh = &model.meshes.items[model.meshes.items.len - 1];
                 current_mesh.material_name = std.mem.trim(u8, tokens.rest(), &std.ascii.whitespace);
+                unique_vertices.clearRetainingCapacity();
             },
             .material_lib => {
                 const mtl_filename = std.mem.trim(u8, tokens.rest(), &std.ascii.whitespace);
@@ -434,9 +435,9 @@ fn loadMaterials(allocator: std.mem.Allocator, dirname: []const u8, filename: []
 
         switch (token_type) {
             .new_material => {
-                try materials.append(Material.init("Placeholder"));
+                const mat_name = std.mem.trim(u8, tokens.rest(), &std.ascii.whitespace);
+                try materials.append(Material.init(mat_name));
                 current_material = &materials.items[0];
-                current_material.?.name = std.mem.trim(u8, tokens.rest(), &std.ascii.whitespace);
             },
             .ambient_color => current_material.?.ambient = parseVec(Vec3, tokens) catch
                 return makeError("error reading ambient color", line_number),

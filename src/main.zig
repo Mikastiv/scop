@@ -288,8 +288,8 @@ pub fn main() !u8 {
         model = math.mat.rotate(&model, model_angles[2], .{ 0, 0, 1 });
         shader_pbr.setUniform(math.Mat4, "model", model);
         // transpose, inverse
-        sphere.draw(shader_pbr);
-        // model3d.draw(shader_pbr);
+        // sphere.draw(shader_pbr);
+        model3d.draw(shader_pbr);
 
         // debug_plane.draw();
 
