@@ -8,6 +8,8 @@ const Vertex = @import("Vertex.zig");
 const Mesh = @import("Mesh.zig");
 const Material = @import("Material.zig");
 const bmp = @import("bmp.zig");
+const c = @import("c.zig");
+const Image = @import("Image.zig");
 
 const Triangle = struct {
     vertices: [3]u32,
@@ -449,9 +451,22 @@ fn loadMaterials(allocator: std.mem.Allocator, dirname: []const u8, filename: []
                 const map_filename = tokens.rest();
                 if (!std.mem.endsWith(u8, map_filename, ".bmp"))
                     return makeError("unsupported image file format", line_number);
-                const map_fullpath = try std.mem.join(allocator, "/", &.{ dirname, map_filename });
-                const image = try bmp.load(allocator, map_fullpath, false);
+                const map_fullpath = try std.mem.joinZ(allocator, "/", &.{ dirname, map_filename });
+                // const image = try bmp.load(allocator, map_fullpath, false);
+                var w: c_int = undefined;
+                var h: c_int = undefined;
+                var bpp: c_int = undefined;
+                const data = c.stbi_load(@ptrCast(map_fullpath.ptr), &w, &h, &bpp, 0);
+                const ptr: [*]u8 = @ptrCast(data);
+                const s: usize = @intCast(w * h);
 
+                const image = Image{
+                    .allocator = allocator,
+                    .width = @intCast(w),
+                    .height = @intCast(h),
+                    .bpp = @intCast(bpp),
+                    .pixels = std.mem.alignInSlice(std.mem.bytesAsSlice(u32, ptr[0..s]), 4).?,
+                };
                 switch (token_type) {
                     .ambient_map => current_material.?.ambient_map = .{ .image = image },
                     .diffuse_map => current_material.?.albedo_map = .{ .image = image },

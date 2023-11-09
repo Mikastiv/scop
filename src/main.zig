@@ -181,6 +181,8 @@ pub fn main() !u8 {
     var debug_plane = try DebugPlane.init(allocator, "res/backpack/diffuse.bmp");
     defer debug_plane.deinit();
 
+    // c.stbi_set_flip_vertically_on_load(1);
+
     const albdeo_img = try bmp.load(allocator, "res/materials/concrete/albedo.bmp", false);
     defer albdeo_img.deinit();
     const metallic_img = try bmp.load(allocator, "res/materials/concrete/metallic.bmp", false);
@@ -269,16 +271,16 @@ pub fn main() !u8 {
             shader_pbr.setUniform(math.Vec3, slice, l.color);
         }
 
-        albedo.bind(c.GL_TEXTURE0);
-        shader_pbr.setUniform(i32, "albedo_map", 0);
-        metallic.bind(c.GL_TEXTURE1);
-        shader_pbr.setUniform(i32, "metallic_map", 1);
-        normal.bind(c.GL_TEXTURE2);
-        shader_pbr.setUniform(i32, "normal_map", 2);
-        roughness.bind(c.GL_TEXTURE3);
-        shader_pbr.setUniform(i32, "roughness_map", 3);
-        ao.bind(c.GL_TEXTURE4);
-        shader_pbr.setUniform(i32, "ao_map", 4);
+        // albedo.bind(c.GL_TEXTURE0);
+        // shader_pbr.setUniform(i32, "albedo_map", 0);
+        // metallic.bind(c.GL_TEXTURE1);
+        // shader_pbr.setUniform(i32, "metallic_map", 1);
+        // normal.bind(c.GL_TEXTURE2);
+        // shader_pbr.setUniform(i32, "normal_map", 2);
+        // roughness.bind(c.GL_TEXTURE3);
+        // shader_pbr.setUniform(i32, "roughness_map", 3);
+        // ao.bind(c.GL_TEXTURE4);
+        // shader_pbr.setUniform(i32, "ao_map", 4);
 
         shader_pbr.setUniform(math.Vec3, "camera_position", camera.pos);
         var model = math.mat.identity(math.Mat4);

@@ -16,6 +16,8 @@ pub fn build(b: *std.Build) void {
     exe.linkLibC();
     exe.addIncludePath(.{ .path = "lib/glad/include" });
     exe.addCSourceFile(.{ .file = .{ .path = "lib/glad/src/glad.c" }, .flags = &.{} });
+    exe.addIncludePath(.{ .path = "lib" });
+    exe.addCSourceFile(.{ .file = .{ .path = "lib/stb_image.c" }, .flags = &.{} });
 
     const glfw_dep = b.dependency("mach_glfw", .{
         .target = exe.target,
