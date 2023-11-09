@@ -178,7 +178,7 @@ pub fn main() !u8 {
     var model3d = try obj.parseObj(allocator, args[1]);
     try model3d.loadOnGpu();
 
-    var debug_plane = try DebugPlane.init(allocator, "res/materials/rustediron/rustediron2_basecolor.bmp");
+    var debug_plane = try DebugPlane.init(allocator, "res/backpack/diffuse.bmp");
     defer debug_plane.deinit();
 
     const albdeo_img = try bmp.load(allocator, "res/materials/rustediron/rustediron2_basecolor.bmp", false);
@@ -253,7 +253,7 @@ pub fn main() !u8 {
             model = math.mat.translate(&model, l.pos);
             model = math.mat.scaleScalar(&model, 0.3);
             shader_light.setUniform(math.Mat4, "model", model);
-            sphere.draw();
+            sphere.draw(shader_light);
         }
 
         shader_pbr.use();
@@ -265,17 +265,17 @@ pub fn main() !u8 {
             shader_pbr.setUniform(math.Vec3, slice, l.color);
         }
 
-        shader_pbr.setUniform(f32, "ao", 1);
-        shader_pbr.setUniform(math.Vec3, "camera_position", camera.pos);
-        albedo.bind(c.GL_TEXTURE0);
-        shader_pbr.setUniform(i32, "albedo_map", 0);
-        metallic.bind(c.GL_TEXTURE1);
-        shader_pbr.setUniform(i32, "metallic_map", 1);
-        normal.bind(c.GL_TEXTURE2);
-        shader_pbr.setUniform(i32, "normal_map", 2);
-        roughness.bind(c.GL_TEXTURE3);
-        shader_pbr.setUniform(i32, "roughness_map", 3);
+        // shader_pbr.setUniform(f32, "ao", 1);
+        // albedo.bind(c.GL_TEXTURE0);
+        // shader_pbr.setUniform(i32, "albedo_map", 0);
+        // metallic.bind(c.GL_TEXTURE1);
+        // shader_pbr.setUniform(i32, "metallic_map", 1);
+        // normal.bind(c.GL_TEXTURE2);
+        // shader_pbr.setUniform(i32, "normal_map", 2);
+        // roughness.bind(c.GL_TEXTURE3);
+        // shader_pbr.setUniform(i32, "roughness_map", 3);
 
+        shader_pbr.setUniform(math.Vec3, "camera_position", camera.pos);
         var model = math.mat.identity(math.Mat4);
         model = math.mat.scaleScalar(&model, 0.75);
         model = math.mat.rotate(&model, model_angles[0], .{ 1, 0, 0 });
@@ -283,9 +283,10 @@ pub fn main() !u8 {
         model = math.mat.rotate(&model, model_angles[2], .{ 0, 0, 1 });
         shader_pbr.setUniform(math.Mat4, "model", model);
         // transpose, inverse
-        sphere.draw();
+        // sphere.draw();
+        model3d.draw(shader_pbr);
 
-        // debug_plane.draw();
+        debug_plane.draw();
 
         window.swapBuffers();
         glfw.pollEvents();

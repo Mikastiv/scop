@@ -86,5 +86,5 @@ pub fn draw(self: *const Self) void {
     self.texture.bind(c.GL_TEXTURE0);
     self.shader.setUniform(i32, "tex", 0);
 
-    self.mesh.draw();
+    self.mesh.draw(self.shader);
 }

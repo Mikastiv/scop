@@ -205,7 +205,7 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
     try model.meshes.append(Mesh.init(allocator, &Material.default));
     errdefer model.deinit();
 
-    const current_mesh = &model.meshes.items[0];
+    var current_mesh = &model.meshes.items[0];
 
     var lines = std.mem.splitSequence(u8, file_content, newlineToken(file_content));
     var line_number: u32 = 0;
@@ -358,7 +358,11 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
             },
             .object => current_mesh.name = std.mem.trim(u8, tokens.rest(), &std.ascii.whitespace),
             .group => {},
-            .use_material => current_mesh.material_name = std.mem.trim(u8, tokens.rest(), &std.ascii.whitespace),
+            .use_material => {
+                // if (current_mesh == &model.meshes.items[0]) try model.meshes.append(Mesh.init(allocator, &Material.default));
+                // current_mesh = &model.meshes.items[model.meshes.items.len - 1];
+                current_mesh.material_name = std.mem.trim(u8, tokens.rest(), &std.ascii.whitespace);
+            },
             .material_lib => {
                 const mtl_filename = std.mem.trim(u8, tokens.rest(), &std.ascii.whitespace);
                 const new_materials = try loadMaterials(allocator, dirname, mtl_filename);
@@ -434,24 +438,12 @@ fn loadMaterials(allocator: std.mem.Allocator, dirname: []const u8, filename: []
                 current_material = &materials.items[0];
                 current_material.?.name = std.mem.trim(u8, tokens.rest(), &std.ascii.whitespace);
             },
-            .ambient_color => {
-                const v = parseVec(Vec3, tokens) catch
-                    return makeError("error reading ambient color", line_number);
-
-                current_material.?.ambient = .{ .rgb = v };
-            },
-            .diffuse_color => {
-                const v = parseVec(Vec3, tokens) catch
-                    return makeError("error reading diffuse color", line_number);
-
-                current_material.?.albedo = .{ .rgb = v };
-            },
-            .specular_color => {
-                const v = parseVec(Vec3, tokens) catch
-                    return makeError("error reading specular color", line_number);
-
-                current_material.?.specular = .{ .rgb = v };
-            },
+            .ambient_color => current_material.?.ambient = parseVec(Vec3, tokens) catch
+                return makeError("error reading ambient color", line_number),
+            .diffuse_color => current_material.?.albedo = parseVec(Vec3, tokens) catch
+                return makeError("error reading diffuse color", line_number),
+            .specular_color => current_material.?.specular = parseVec(Vec3, tokens) catch
+                return makeError("error reading specular color", line_number),
             .ambient_map, .diffuse_map, .specular_map, .roughness_map, .normal_map => {
                 const map_filename = tokens.rest();
                 if (!std.mem.endsWith(u8, map_filename, ".bmp"))
@@ -460,10 +452,10 @@ fn loadMaterials(allocator: std.mem.Allocator, dirname: []const u8, filename: []
                 const image = try bmp.load(allocator, map_fullpath, false);
 
                 switch (token_type) {
-                    .ambient_map => current_material.?.ambient = .{ .texture = .{ .image = image } },
-                    .diffuse_map => current_material.?.albedo = .{ .texture = .{ .image = image } },
-                    .specular_map => current_material.?.specular = .{ .texture = .{ .image = image } },
-                    .roughness_map => current_material.?.roughness = .{ .texture = .{ .image = image } },
+                    .ambient_map => current_material.?.ambient_map = .{ .image = image },
+                    .diffuse_map => current_material.?.albedo_map = .{ .image = image },
+                    .specular_map => current_material.?.specular_map = .{ .image = image },
+                    .roughness_map => current_material.?.roughness_map = .{ .image = image },
                     .normal_map => current_material.?.normal_map = .{ .image = image },
                     else => unreachable,
                 }

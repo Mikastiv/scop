@@ -2,6 +2,7 @@ const std = @import("std");
 const Self = @This();
 const Mesh = @import("Mesh.zig");
 const Material = @import("Material.zig");
+const Shader = @import("Shader.zig");
 
 allocator: std.mem.Allocator,
 meshes: std.ArrayList(Mesh),
@@ -35,8 +36,8 @@ pub fn loadOnGpu(self: *Self) !void {
     }
 }
 
-pub fn draw(self: *const Self) void {
+pub fn draw(self: *const Self, shader: Shader) void {
     for (self.meshes.items) |mesh| {
-        mesh.draw();
+        mesh.draw(shader);
     }
 }

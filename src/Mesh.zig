@@ -5,6 +5,7 @@ const Material = @import("Material.zig");
 const math = @import("math.zig");
 const GLBuffer = @import("GLBuffer.zig");
 const c = @import("c.zig");
+const Shader = @import("Shader.zig");
 
 allocator: std.mem.Allocator,
 name: []const u8,
@@ -59,7 +60,25 @@ pub fn loadOnGpu(self: *Self) void {
     self.index_buffer.unbind();
 }
 
-pub fn draw(self: *const Self) void {
+pub fn draw(self: *const Self, shader: Shader) void {
+    _ = shader;
+    // if (self.material.ambient_map) |m| {
+    //     m.bind(c.GL_TEXTURE0);
+    //     shader.setUniform(i32, "ao_map", 0);
+    // }
+    // if (self.material.albedo_map) |m| {
+    //     m.bind(c.GL_TEXTURE1);
+    //     shader.setUniform(i32, "albedo_map", 1);
+    // }
+    // if (self.material.roughness_map) |m| {
+    //     m.bind(c.GL_TEXTURE2);
+    //     shader.setUniform(i32, "roughness_map", 2);
+    // }
+    // if (self.material.specular_map) |m| {
+    //     m.bind(c.GL_TEXTURE3);
+    //     shader.setUniform(i32, "metallic_map", 3);
+    // }
+
     c.glBindVertexArray(self.vao);
     c.glDrawElements(self.primitive, @intCast(self.indices.items.len), c.GL_UNSIGNED_SHORT, null);
     c.glBindVertexArray(0);

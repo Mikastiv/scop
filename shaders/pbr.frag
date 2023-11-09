@@ -12,7 +12,7 @@ uniform sampler2D albedo_map;
 uniform sampler2D metallic_map;
 uniform sampler2D roughness_map;
 uniform sampler2D normal_map;
-uniform float ao;
+uniform sampler2D ao_map;
 
 #define LIGHT_COUNT 4
 
@@ -64,8 +64,9 @@ void main() {
     vec3 v = normalize(camera_position - vs_in.world_pos);
 
     vec3 albedo = pow(texture(albedo_map, vs_in.tex_coords).rgb, vec3(2.2));
-    float metallic = texture(metallic_map, vs_in.tex_coords).r;
-    float roughness = texture(roughness_map, vs_in.tex_coords).r;
+    float metallic = 0.1;//texture(metallic_map, vs_in.tex_coords).r;
+    float roughness = 0.3;//texture(roughness_map, vs_in.tex_coords).r;
+    float ao = 1.0;//texture(ao_map, vs_in.tex_coords).r;
 
     vec3 f0 = vec3(0.04);
     f0 = mix(f0, albedo, metallic);
