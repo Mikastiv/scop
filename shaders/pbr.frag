@@ -4,7 +4,7 @@ in VS_OUT {
     vec3 normal;
     vec3 world_pos;
     vec2 tex_coords;
-} vs_in;
+} vs_out;
 
 layout(location = 0) out vec4 out_color;
 
@@ -22,6 +22,22 @@ uniform vec3 light_colors[LIGHT_COUNT];
 uniform vec3 camera_position;
 
 const float PI = 3.14159265359;
+
+vec3 get_normal_from_map() {
+    vec3 tangent_normal = texture(normal_map, vs_out.tex_coords).xyz * 2.0 - 1.0;
+
+    vec3 Q1 = dFdx(vs_out.world_pos);
+    vec3 Q2 = dFdy(vs_out.world_pos);
+    vec2 st1 = dFdx(vs_out.tex_coords);
+    vec2 st2 = dFdy(vs_out.tex_coords);
+
+    vec3 N = normalize(vs_out.normal);
+    vec3 T = normalize(Q1 * st2.t - Q2 * st1.t);
+    vec3 B = -normalize(cross(N, T));
+    mat3 TBN = mat3(T, B, N);
+
+    return normalize(TBN * tangent_normal);
+}
 
 float distribution_ggx(vec3 n, vec3 h, float roughness) {
     float a = roughness * roughness;
@@ -60,22 +76,23 @@ vec3 fresnel_schlick(float cos_theta, vec3 f0) {
 }
 
 void main() {
-    vec3 n = normalize(vs_in.normal);
-    vec3 v = normalize(camera_position - vs_in.world_pos);
+    // vec3 n = normalize(vs_out.normal);
+    vec3 n = get_normal_from_map();
+    vec3 v = normalize(camera_position - vs_out.world_pos);
 
-    vec3 albedo = pow(texture(albedo_map, vs_in.tex_coords).rgb, vec3(2.2));
-    float metallic = 0.1;//texture(metallic_map, vs_in.tex_coords).r;
-    float roughness = 0.3;//texture(roughness_map, vs_in.tex_coords).r;
-    float ao = 1.0;//texture(ao_map, vs_in.tex_coords).r;
+    vec3 albedo = pow(texture(albedo_map, vs_out.tex_coords).rgb, vec3(2.2));
+    float metallic = texture(metallic_map, vs_out.tex_coords).r;
+    float roughness = texture(roughness_map, vs_out.tex_coords).r;
+    // vec3 ao = texture(ao_map, vs_out.tex_coords).rgb;
 
     vec3 f0 = vec3(0.04);
     f0 = mix(f0, albedo, metallic);
 
     vec3 lo = vec3(0.0);
     for (int i = 0; i < LIGHT_COUNT; ++i) {
-        vec3 l = normalize(light_positions[i] - vs_in.world_pos);
+        vec3 l = normalize(light_positions[i] - vs_out.world_pos);
         vec3 h = normalize(v + l);
-        float dist = length(light_positions[i] - vs_in.world_pos);
+        float dist = length(light_positions[i] - vs_out.world_pos);
         float attenuation = 1.0 / (dist * dist);
         vec3 radiance = light_colors[i] * attenuation;
 
@@ -96,7 +113,7 @@ void main() {
         lo += (kd * albedo / PI + specular) * radiance * n_dot_l;
     }
 
-    vec3 ambient = vec3(0.03) * albedo * ao;
+    vec3 ambient = vec3(0.3) * albedo;
     vec3 color = ambient + lo;
 
     color = color / (color + vec3(1.0));

@@ -181,14 +181,16 @@ pub fn main() !u8 {
     var debug_plane = try DebugPlane.init(allocator, "res/backpack/diffuse.bmp");
     defer debug_plane.deinit();
 
-    const albdeo_img = try bmp.load(allocator, "res/materials/rustediron/rustediron2_basecolor.bmp", false);
+    const albdeo_img = try bmp.load(allocator, "res/materials/concrete/albedo.bmp", false);
     defer albdeo_img.deinit();
-    const metallic_img = try bmp.load(allocator, "res/materials/rustediron/rustediron2_metallic.bmp", false);
+    const metallic_img = try bmp.load(allocator, "res/materials/concrete/metallic.bmp", false);
     defer metallic_img.deinit();
-    const normal_img = try bmp.load(allocator, "res/materials/rustediron/rustediron2_normal.bmp", false);
+    const normal_img = try bmp.load(allocator, "res/materials/concrete/normal.bmp", false);
     defer normal_img.deinit();
-    const roughness_img = try bmp.load(allocator, "res/materials/rustediron/rustediron2_roughness.bmp", false);
+    const roughness_img = try bmp.load(allocator, "res/materials/concrete/roughness.bmp", false);
     defer roughness_img.deinit();
+    const ao_img = try bmp.load(allocator, "res/materials/concrete/ao.bmp", false);
+    defer ao_img.deinit();
 
     var albedo = Texture{ .image = albdeo_img };
     albedo.loadOnGpu();
@@ -198,6 +200,8 @@ pub fn main() !u8 {
     normal.loadOnGpu();
     var roughness = Texture{ .image = roughness_img };
     roughness.loadOnGpu();
+    var ao = Texture{ .image = ao_img };
+    ao.loadOnGpu();
 
     c.glEnable(c.GL_MULTISAMPLE);
     c.glEnable(c.GL_DEPTH_TEST);
@@ -265,15 +269,16 @@ pub fn main() !u8 {
             shader_pbr.setUniform(math.Vec3, slice, l.color);
         }
 
-        // shader_pbr.setUniform(f32, "ao", 1);
-        // albedo.bind(c.GL_TEXTURE0);
-        // shader_pbr.setUniform(i32, "albedo_map", 0);
-        // metallic.bind(c.GL_TEXTURE1);
-        // shader_pbr.setUniform(i32, "metallic_map", 1);
-        // normal.bind(c.GL_TEXTURE2);
-        // shader_pbr.setUniform(i32, "normal_map", 2);
-        // roughness.bind(c.GL_TEXTURE3);
-        // shader_pbr.setUniform(i32, "roughness_map", 3);
+        albedo.bind(c.GL_TEXTURE0);
+        shader_pbr.setUniform(i32, "albedo_map", 0);
+        metallic.bind(c.GL_TEXTURE1);
+        shader_pbr.setUniform(i32, "metallic_map", 1);
+        normal.bind(c.GL_TEXTURE2);
+        shader_pbr.setUniform(i32, "normal_map", 2);
+        roughness.bind(c.GL_TEXTURE3);
+        shader_pbr.setUniform(i32, "roughness_map", 3);
+        ao.bind(c.GL_TEXTURE4);
+        shader_pbr.setUniform(i32, "ao_map", 4);
 
         shader_pbr.setUniform(math.Vec3, "camera_position", camera.pos);
         var model = math.mat.identity(math.Mat4);
@@ -283,10 +288,10 @@ pub fn main() !u8 {
         model = math.mat.rotate(&model, model_angles[2], .{ 0, 0, 1 });
         shader_pbr.setUniform(math.Mat4, "model", model);
         // transpose, inverse
-        // sphere.draw();
-        model3d.draw(shader_pbr);
+        sphere.draw(shader_pbr);
+        // model3d.draw(shader_pbr);
 
-        debug_plane.draw();
+        // debug_plane.draw();
 
         window.swapBuffers();
         glfw.pollEvents();
