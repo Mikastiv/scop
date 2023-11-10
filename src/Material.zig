@@ -51,6 +51,7 @@ pub fn loadOnGpu(self: *Self, allocator: std.mem.Allocator) !void {
         self.roughness_map = try createTextureForColor(self.roughness, allocator);
     }
     self.roughness_map.?.loadOnGpu();
+    if (self.normal_map) |*m| m.loadOnGpu();
 }
 
 pub fn deinit(self: *const Self, allocator: std.mem.Allocator) void {

@@ -15,7 +15,10 @@ fn compileShader(shader_bytes: []const u8, shader_type: c.GLenum) error{ShaderCo
     c.glGetShaderiv(shader, c.GL_COMPILE_STATUS, &success);
     if (success == c.GL_FALSE) {
         c.glGetShaderInfoLog(shader, info_log.len, null, @ptrCast(&info_log));
-        std.log.err("opengl: failed to compile shader \"{s}\"\n{s}\n", .{ shader_bytes, info_log });
+        std.log.err("opengl: failed to compile shader \"{s}\"\n{s}\n", .{
+            shader_bytes,
+            @as([*:0]const u8, @ptrCast(&info_log)),
+        });
         return error.ShaderCompilationFailed;
     }
 
@@ -43,7 +46,7 @@ pub fn init(allocator: std.mem.Allocator, vertex_path: []const u8, fragment_path
     c.glGetProgramiv(id, c.GL_LINK_STATUS, &success);
     if (success == c.GL_FALSE) {
         c.glGetProgramInfoLog(id, info_log.len, null, @ptrCast(&info_log));
-        std.log.err("opengl: failed to link shader\n{s}\n", .{info_log});
+        std.log.err("opengl: failed to link shader\n{s}\n", .{@as([*:0]const u8, @ptrCast(&info_log))});
         return error.ShaderLinkFailed;
     }
 

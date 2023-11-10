@@ -76,14 +76,14 @@ vec3 fresnel_schlick(float cos_theta, vec3 f0) {
 }
 
 void main() {
-    // vec3 n = get_normal_from_map();
-    vec3 n = normalize(fs_in.normal);
+    vec3 n = get_normal_from_map();
+    // vec3 n = normalize(fs_in.normal);
     vec3 v = normalize(camera_position - fs_in.world_pos);
 
     vec3 albedo = pow(texture(albedo_map, fs_in.tex_coords).rgb, vec3(2.2));
     float metallic = texture(metallic_map, fs_in.tex_coords).r;
     float roughness = texture(roughness_map, fs_in.tex_coords).r;
-    // vec3 ao = texture(ao_map, fs_in.tex_coords).rgb;
+    vec3 ao = texture(ao_map, fs_in.tex_coords).rgb;
 
     vec3 f0 = vec3(0.04);
     f0 = mix(f0, albedo, metallic);
@@ -113,11 +113,11 @@ void main() {
         lo += (kd * albedo / PI + specular) * radiance * n_dot_l;
     }
 
-    vec3 ambient = vec3(0.3) * albedo;
+    vec3 ambient = vec3(0.03) * albedo;
     vec3 color = ambient + lo;
 
     color = color / (color + vec3(1.0));
     color = pow(color, vec3(1.0 / 2.2));
 
-    out_color = vec4(texture(albedo_map, fs_in.tex_coords));
+    out_color = vec4(color, 1.0);
 }

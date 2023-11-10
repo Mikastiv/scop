@@ -77,6 +77,10 @@ pub fn draw(self: *const Self, shader: Shader) void {
         m.bind(c.GL_TEXTURE3);
         shader.setUniform(i32, "metallic_map", 3);
     }
+    if (self.material.normal_map) |m| {
+        m.bind(c.GL_TEXTURE4);
+        shader.setUniform(i32, "normal_map", 4);
+    }
 
     c.glBindVertexArray(self.vao);
     c.glDrawElements(self.primitive, @intCast(self.indices.items.len), c.GL_UNSIGNED_SHORT, null);
