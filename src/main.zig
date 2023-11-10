@@ -199,10 +199,10 @@ pub fn main() !u8 {
 
     const light_color = math.Vec3{ 300, 300, 300 };
     const lights = [_]PointLight{
-        .{ .pos = .{ -10, 10, 10 }, .color = light_color },
-        .{ .pos = .{ 10, 10, 10 }, .color = light_color },
-        .{ .pos = .{ -10, -10, 10 }, .color = light_color },
-        .{ .pos = .{ 10, -10, 10 }, .color = light_color },
+        .{ .pos = .{ -5, 5, 5 }, .color = light_color },
+        .{ .pos = .{ 5, 5, 5 }, .color = light_color },
+        .{ .pos = .{ -5, -5, 5 }, .color = light_color },
+        .{ .pos = .{ 5, -5, 5 }, .color = light_color },
     };
 
     var last_frame: f64 = 0;
