@@ -250,7 +250,7 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
                     const vt_size = uvs.items.len;
 
                     // normal indices
-                    const vn_idxs = [_]u32{ tri.normals[0], tri.normals[1], tri.normals[2] };
+                    var vn_idxs = [_]u32{ tri.normals[0], tri.normals[1], tri.normals[2] };
                     const vn_size = normals.items.len;
 
                     if (v_idxs[0] >= v_size or v_idxs[1] >= v_size or v_idxs[2] >= v_size)
@@ -259,33 +259,6 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
                         return makeError("invalid uv index", line_number);
                     if (containsNormals(face_type) and (vn_idxs[0] >= vn_size or vn_idxs[1] >= vn_size or vn_idxs[2] >= vn_size))
                         return makeError("invalid normal index", line_number);
-
-                    const obj_verts = [_]ObjVertex{
-                        .{
-                            .face_type = face_type,
-                            .vertex = v_idxs[0],
-                            .uv = vt_idxs[0],
-                            .normal = vn_idxs[0],
-                        },
-                        .{
-                            .face_type = face_type,
-                            .vertex = v_idxs[1],
-                            .uv = vt_idxs[1],
-                            .normal = vn_idxs[1],
-                        },
-                        .{
-                            .face_type = face_type,
-                            .vertex = v_idxs[2],
-                            .uv = vt_idxs[2],
-                            .normal = vn_idxs[2],
-                        },
-                    };
-
-                    const idxs = [_]?u16{
-                        unique_vertices.get(obj_verts[0]),
-                        unique_vertices.get(obj_verts[1]),
-                        unique_vertices.get(obj_verts[2]),
-                    };
 
                     // vertices
                     const vs = [_]Vec3{
@@ -319,6 +292,10 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
                         vns[0] = n;
                         vns[1] = n;
                         vns[2] = n;
+                        vn_idxs[0] = @intCast(normals.items.len);
+                        vn_idxs[1] = @intCast(normals.items.len);
+                        vn_idxs[2] = @intCast(normals.items.len);
+                        try normals.append(n);
                     }
 
                     // tangent & bitangent
@@ -343,6 +320,33 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
                         .{ .pos = vs[0], .normal = vns[0], .uv = vts[0], .tangent = tangent, .bitangent = bitangent },
                         .{ .pos = vs[1], .normal = vns[1], .uv = vts[1], .tangent = tangent, .bitangent = bitangent },
                         .{ .pos = vs[2], .normal = vns[2], .uv = vts[2], .tangent = tangent, .bitangent = bitangent },
+                    };
+
+                    const obj_verts = [_]ObjVertex{
+                        .{
+                            .face_type = face_type,
+                            .vertex = v_idxs[0],
+                            .uv = vt_idxs[0],
+                            .normal = vn_idxs[0],
+                        },
+                        .{
+                            .face_type = face_type,
+                            .vertex = v_idxs[1],
+                            .uv = vt_idxs[1],
+                            .normal = vn_idxs[1],
+                        },
+                        .{
+                            .face_type = face_type,
+                            .vertex = v_idxs[2],
+                            .uv = vt_idxs[2],
+                            .normal = vn_idxs[2],
+                        },
+                    };
+
+                    const idxs = [_]?u16{
+                        unique_vertices.get(obj_verts[0]),
+                        unique_vertices.get(obj_verts[1]),
+                        unique_vertices.get(obj_verts[2]),
                     };
 
                     for (0..3) |i| {

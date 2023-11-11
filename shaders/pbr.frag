@@ -76,8 +76,8 @@ vec3 fresnel_schlick(float cos_theta, vec3 f0) {
 }
 
 void main() {
-    vec3 n = get_normal_from_map();
-    // vec3 n = normalize(fs_in.normal);
+    // vec3 n = get_normal_from_map();
+    vec3 n = normalize(fs_in.normal);
     vec3 v = normalize(camera_position - fs_in.world_pos);
 
     vec3 albedo = pow(texture(albedo_map, fs_in.tex_coords).rgb, vec3(2.2));
