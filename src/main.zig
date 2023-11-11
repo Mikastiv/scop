@@ -178,6 +178,15 @@ pub fn main() !u8 {
     var model3d = try obj.parseObj(allocator, args[1]);
     try model3d.loadOnGpu();
 
+    const mesh_count = model3d.meshes.items.len;
+    var vertex_count: usize = 0;
+    var index_count: usize = 0;
+    for (model3d.meshes.items) |mesh| {
+        vertex_count += mesh.vertices.items.len;
+        index_count += mesh.indices.items.len;
+    }
+    std.log.info("meshes: {d}, vertices: {d}, indices: {d}\n", .{ mesh_count, vertex_count, index_count });
+
     var debug_plane = try DebugPlane.init(allocator, "res/backpack/diffuse.bmp");
     defer debug_plane.deinit();
 

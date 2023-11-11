@@ -183,8 +183,16 @@ fn makeError(comptime msg: []const u8, line_number: u32) error{ParseError} {
     return error.ParseError;
 }
 
-fn newlineToken(str: []const u8) []const u8 {
-    return if (std.mem.indexOf(u8, str, "\r\n")) |_| "\r\n" else "\n";
+fn findNormal(normals: []Vec3, n: Vec3) ?u32 {
+    const n_slice: []const f32 = @ptrCast(&n);
+
+    for (normals, 0..) |normal, i| {
+        const normal_slice: []const f32 = @ptrCast(&normal);
+        if (std.mem.eql(u8, std.mem.sliceAsBytes(normal_slice), std.mem.sliceAsBytes(n_slice)))
+            return @intCast(i);
+    }
+
+    return null;
 }
 
 pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
@@ -210,12 +218,13 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
     var current_mesh = &model.meshes.items[0];
     current_mesh.material_name = "default";
 
-    var lines = std.mem.splitSequence(u8, file_content, newlineToken(file_content));
+    var lines = std.mem.splitScalar(u8, file_content, '\n');
     var line_number: u32 = 0;
     while (lines.next()) |line| {
         line_number += 1;
 
-        var tokens = std.mem.tokenizeAny(u8, line, &std.ascii.whitespace);
+        const trimmed_line = std.mem.trim(u8, line, "\r");
+        var tokens = std.mem.tokenizeAny(u8, trimmed_line, &std.ascii.whitespace);
         const token = tokens.next() orelse continue; // Empty line
 
         const token_type = ObjElementType.fromStr(token);
@@ -293,9 +302,11 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
                         vns[0] = n;
                         vns[1] = n;
                         vns[2] = n;
-                        vn_idxs[0] = @intCast(normals.items.len);
-                        vn_idxs[1] = @intCast(normals.items.len);
-                        vn_idxs[2] = @intCast(normals.items.len);
+
+                        const n_idx = findNormal(normals.items, n) orelse @as(u32, @intCast(normals.items.len));
+                        vn_idxs[0] = n_idx;
+                        vn_idxs[1] = n_idx;
+                        vn_idxs[2] = n_idx;
                         try normals.append(n);
                     }
 
@@ -427,12 +438,13 @@ fn loadMaterials(allocator: std.mem.Allocator, dirname: []const u8, filename: []
 
     var current_material: ?*Material = null;
 
-    var lines = std.mem.splitSequence(u8, file_content, newlineToken(file_content));
+    var lines = std.mem.splitScalar(u8, file_content, '\n');
     var line_number: u32 = 0;
     while (lines.next()) |line| {
         line_number += 1;
 
-        var tokens = std.mem.tokenizeAny(u8, line, &std.ascii.whitespace);
+        const trimmed_line = std.mem.trim(u8, line, "\r");
+        var tokens = std.mem.tokenizeAny(u8, trimmed_line, &std.ascii.whitespace);
         const token = tokens.next() orelse continue; // Empty line
 
         const token_type = MaterialElementType.fromStr(token);
