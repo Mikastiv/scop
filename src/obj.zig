@@ -215,6 +215,8 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
     try model.meshes.append(Mesh.init(allocator, &Material.default));
     errdefer model.deinit();
 
+    try model.materials.append(Material.default);
+
     var current_mesh = &model.meshes.items[0];
     current_mesh.material_name = "default";
 

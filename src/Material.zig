@@ -7,11 +7,11 @@ const Image = @import("Image.zig");
 pub const default = init("default");
 
 name: []const u8,
-ambient: Vec3 = .{ 0, 0, 0 },
+ambient: Vec3 = .{ 0.2, 0.2, 0.2 },
 ambient_map: ?Texture = null,
-albedo: Vec3 = .{ 0, 0, 0 },
+albedo: Vec3 = .{ 0.5, 0.5, 0.5 },
 albedo_map: ?Texture = null,
-specular: Vec3 = .{ 0, 0, 0 },
+specular: Vec3 = .{ 0.8, 0.8, 0.8 },
 specular_map: ?Texture = null,
 roughness: Vec3 = .{ 0, 0, 0 },
 roughness_map: ?Texture = null,
