@@ -208,6 +208,7 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
     errdefer model.deinit();
 
     var current_mesh = &model.meshes.items[0];
+    current_mesh.material_name = "default";
 
     var lines = std.mem.splitSequence(u8, file_content, newlineToken(file_content));
     var line_number: u32 = 0;
