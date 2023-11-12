@@ -29,6 +29,20 @@ var fov: f32 = 45.0;
 const model_rotation_speed = 2.0;
 var model_angles = math.Vec3{ 0, 0, 0 };
 
+var current_mode = DrawMode.triangles;
+
+const DrawMode = enum(u8) {
+    triangles,
+    pbr,
+    count,
+
+    fn nextValue(mode: DrawMode) DrawMode {
+        const value = @intFromEnum(mode);
+        const next = (value + 1) % @intFromEnum(DrawMode.count);
+        return @enumFromInt(next);
+    }
+};
+
 fn errorCallback(error_code: glfw.ErrorCode, description: [:0]const u8) void {
     std.log.err("glfw: {}: {s}\n", .{ error_code, description });
 }
@@ -40,10 +54,9 @@ fn framebufferSizeCallback(_: glfw.Window, width: u32, height: u32) void {
     c.glViewport(0, 0, @intCast(width), @intCast(height));
 }
 
-fn keyboardCallback(window: glfw.Window, key: glfw.Key, scancode: i32, action: glfw.Action, mods: glfw.Mods) void {
-    if (key == glfw.Key.escape and action == glfw.Action.press) window.setShouldClose(true);
-    _ = mods;
-    _ = scancode;
+fn keyboardCallback(window: glfw.Window, key: glfw.Key, _: i32, action: glfw.Action, _: glfw.Mods) void {
+    if (key == .escape and action == .press) window.setShouldClose(true);
+    if (key == .q and action == .press) current_mode = DrawMode.nextValue(current_mode);
 }
 
 fn mouseCallback(_: glfw.Window, xpos: f64, ypos: f64) void {
@@ -247,25 +260,36 @@ pub fn main() !u8 {
             sphere.draw(shader_light);
         }
 
-        shader_pbr.use();
-        for (lights, 0..) |l, i| {
-            var buffer: [256]u8 = undefined;
-            var slice = try std.fmt.bufPrintZ(&buffer, "light_positions[{d}]", .{i});
-            shader_pbr.setUniform(math.Vec3, slice, l.pos);
-            slice = try std.fmt.bufPrintZ(&buffer, "light_colors[{d}]", .{i});
-            shader_pbr.setUniform(math.Vec3, slice, l.color);
-        }
-
-        shader_pbr.setUniform(math.Vec3, "camera_position", camera.pos);
         var model = math.mat.identity(math.Mat4);
         model = math.mat.scaleScalar(&model, 0.75);
         model = math.mat.rotate(&model, model_angles[0], .{ 1, 0, 0 });
         model = math.mat.rotate(&model, model_angles[1], .{ 0, 1, 0 });
         model = math.mat.rotate(&model, model_angles[2], .{ 0, 0, 1 });
-        shader_pbr.setUniform(math.Mat4, "model", model);
-        // transpose, inverse
-        // sphere.draw(shader_pbr);
-        model3d.draw(shader_pbr);
+
+        switch (current_mode) {
+            .triangles => {
+                shader_tri_colored.use();
+                shader_tri_colored.setUniform(math.Mat4, "model", model);
+                model3d.draw(shader_tri_colored);
+            },
+            .pbr => {
+                shader_pbr.use();
+                for (lights, 0..) |l, i| {
+                    var buffer: [256]u8 = undefined;
+                    var slice = try std.fmt.bufPrintZ(&buffer, "light_positions[{d}]", .{i});
+                    shader_pbr.setUniform(math.Vec3, slice, l.pos);
+                    slice = try std.fmt.bufPrintZ(&buffer, "light_colors[{d}]", .{i});
+                    shader_pbr.setUniform(math.Vec3, slice, l.color);
+                }
+
+                shader_pbr.setUniform(math.Vec3, "camera_position", camera.pos);
+                shader_pbr.setUniform(math.Mat4, "model", model);
+                // transpose, inverse
+                // sphere.draw(shader_pbr);
+                model3d.draw(shader_pbr);
+            },
+            else => unreachable,
+        }
 
         // debug_plane.draw();
 
