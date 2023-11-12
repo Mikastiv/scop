@@ -160,7 +160,7 @@ pub fn main() !u8 {
     const allocator = arena.allocator();
 
     const args = try std.process.argsAlloc(allocator);
-    defer allocator.free(args);
+    defer std.process.argsFree(allocator, args);
 
     if (!try validateArgs(args)) {
         return 1;
