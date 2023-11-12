@@ -218,7 +218,6 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
     try model.materials.append(Material.default);
 
     var current_mesh = &model.meshes.items[0];
-    current_mesh.material_name = "default";
 
     var lines = std.mem.splitScalar(u8, file_content, '\n');
     var line_number: u32 = 0;
@@ -498,8 +497,7 @@ fn findMaterialByName(materials: []const Material, name: []const u8) ?*const Mat
 
 fn resolveMaterials(model: *Model) !void {
     for (model.meshes.items) |*mesh| {
-        const name = mesh.material_name orelse continue;
-        const material = findMaterialByName(model.materials.items, name);
+        const material = findMaterialByName(model.materials.items, mesh.material_name);
         if (material) |m| mesh.material = m;
     }
 }

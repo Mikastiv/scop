@@ -16,7 +16,7 @@ primitive: c.GLenum,
 vertices: std.ArrayList(Vertex),
 indices: std.ArrayList(u16),
 material: *const Material,
-material_name: ?[]const u8 = null,
+material_name: []const u8,
 
 pub fn init(allocator: std.mem.Allocator, material: *const Material) Self {
     return .{
@@ -29,6 +29,7 @@ pub fn init(allocator: std.mem.Allocator, material: *const Material) Self {
         .vertices = std.ArrayList(Vertex).init(allocator),
         .indices = std.ArrayList(u16).init(allocator),
         .material = material,
+        .material_name = material.name,
     };
 }
 
