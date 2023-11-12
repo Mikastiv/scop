@@ -14,7 +14,7 @@ uniform sampler2D roughness_map;
 uniform sampler2D normal_map;
 uniform sampler2D ao_map;
 
-#define LIGHT_COUNT 4
+#define LIGHT_COUNT 2
 
 uniform vec3 light_positions[LIGHT_COUNT];
 uniform vec3 light_colors[LIGHT_COUNT];
@@ -54,7 +54,7 @@ float distribution_ggx(vec3 n, vec3 h, float roughness) {
 
 float geometry_schlick_ggx(float n_dot_v, float roughness) {
     float r = roughness + 1.0;
-    float k = r * r / 8.0;
+    float k = (r * r) / 8.0;
 
     float numerator = n_dot_v;
     float denominator = n_dot_v * (1.0 - k) + k;
@@ -63,8 +63,8 @@ float geometry_schlick_ggx(float n_dot_v, float roughness) {
 }
 
 float geometry_smith(vec3 n, vec3 v, vec3 l, float roughness) {
-    float n_dot_v = max(dot(n, v), 0.0);
-    float n_dot_l = max(dot(n, l), 0.0);
+    float n_dot_v = max(dot(n, v), 0.000001);
+    float n_dot_l = max(dot(n, l), 0.000001);
     float ggx1 = geometry_schlick_ggx(n_dot_v, roughness);
     float ggx2 = geometry_schlick_ggx(n_dot_l, roughness);
 
@@ -85,8 +85,7 @@ void main() {
     float roughness = texture(roughness_map, fs_in.tex_coords).r;
     float ao = texture(ao_map, fs_in.tex_coords).r;
 
-    vec3 f0 = vec3(0.04);
-    f0 = mix(f0, albedo, metallic);
+    vec3 f0 = mix(vec3(0.04), albedo, metallic);
 
     vec3 lo = vec3(0.0);
     for (int i = 0; i < LIGHT_COUNT; ++i) {
@@ -98,7 +97,7 @@ void main() {
 
         float ndf = distribution_ggx(n, h, roughness);
         float g = geometry_smith(n, v, l, roughness);
-        vec3 f = fresnel_schlick(clamp(dot(n, v), 0.0, 1.0), f0);
+        vec3 f = fresnel_schlick(clamp(dot(h, v), 0.0, 1.0), f0);
 
         vec3 numerator = ndf * g * f;
         float denominator = 4.0 * max(dot(n, v), 0.0) * max(dot(n, l), 0.0) + 0.0001;
@@ -108,7 +107,7 @@ void main() {
         vec3 kd = vec3(1.0) - ks;
         kd *= 1.0 - metallic;
 
-        float n_dot_l = max(dot(n, l), 0.0);
+        float n_dot_l = max(dot(n, l), 0.000001);
 
         lo += (kd * albedo / PI + specular) * radiance * n_dot_l;
     }
