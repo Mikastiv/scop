@@ -64,7 +64,6 @@ pub fn use(self: Self) void {
 pub fn setUniform(self: Self, comptime T: type, name: [:0]const u8, value: T) void {
     const loc = c.glGetUniformLocation(self.id, name);
     switch (T) {
-        bool => c.glUniform1i(loc, value),
         i32 => c.glUniform1i(loc, value),
         u32 => c.glUniform1ui(loc, value),
         f32 => c.glUniform1f(loc, value),

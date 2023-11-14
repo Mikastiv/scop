@@ -9,7 +9,7 @@
             "request": "launch",
             "name": "Debug",
             "program": "${workspaceFolder}/zig-out/bin/scop",
-            "args": ["res/teapot.obj"],
+            "args": ["res/teapot2.obj"],
             "cwd": "${workspaceFolder}"
         }
     ]

@@ -33,6 +33,7 @@ var current_mode = DrawMode.triangles;
 
 const DrawMode = enum(u8) {
     triangles,
+    // texture,
     pbr,
     count,
 
@@ -272,6 +273,7 @@ pub fn main() !u8 {
                 shader_tri_colored.setUniform(math.Mat4, "model", model);
                 model3d.draw(shader_tri_colored);
             },
+            // .texture => {},
             .pbr => {
                 shader_pbr.use();
                 for (lights, 0..) |l, i| {

@@ -5,10 +5,10 @@ layout(location = 0) out vec4 out_color;
 #define COLOR_COUNT 4
 
 const vec3 triangles_colors[COLOR_COUNT] = vec3[](
-    vec3(0.1),
-    vec3(0.25),
-    vec3(0.5),
-    vec3(0.4)
+    vec3(0.2),
+    vec3(0.3),
+    vec3(0.4),
+    vec3(0.5)
 );
 
 void main() {

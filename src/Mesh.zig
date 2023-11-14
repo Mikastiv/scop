@@ -81,6 +81,9 @@ pub fn draw(self: *const Self, shader: Shader) void {
     if (self.material.normal_map) |m| {
         m.bind(c.GL_TEXTURE4);
         shader.setUniform(i32, "normal_map", 4);
+        shader.setUniform(i32, "has_normal_map", 1);
+    } else {
+        shader.setUniform(i32, "has_normal_map", 0);
     }
 
     c.glBindVertexArray(self.vao);
