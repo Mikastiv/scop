@@ -391,7 +391,8 @@ pub fn parseObj(allocator: std.mem.Allocator, filename: []const u8) !Model {
             },
             .smooth_shading => {},
             .comment => {},
-            .unknown => std.log.warn("unknown token \"{s}\" (line {d})", .{ token, line_number }),
+            else => {},
+            // .unknown => std.log.warn("unknown token \"{s}\" (line {d})", .{ token, line_number }),
         }
     }
 
@@ -481,7 +482,8 @@ fn loadMaterials(allocator: std.mem.Allocator, dirname: []const u8, filename: []
                 }
             },
             .comment => {},
-            .unknown => std.log.warn("unknown token \"{s}\" (line {d})", .{ token, line_number }),
+            else => {},
+            // .unknown => std.log.warn("unknown token \"{s}\" (line {d})", .{ token, line_number }),
         }
     }
 
