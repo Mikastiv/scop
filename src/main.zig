@@ -203,7 +203,7 @@ pub fn main() !u8 {
         vertex_count += mesh.vertices.items.len;
         index_count += mesh.indices.items.len;
     }
-    std.log.info("meshes: {d}, vertices: {d}, indices: {d}\n", .{ mesh_count, vertex_count, index_count });
+    std.log.info("meshes: {d}, vertices: {d}, indices: {d}", .{ mesh_count, vertex_count, index_count });
 
     if (vertex_count < 3) {
         std.log.err("invalid model", .{});
