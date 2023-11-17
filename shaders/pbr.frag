@@ -15,7 +15,7 @@ uniform sampler2D normal_map;
 uniform sampler2D ao_map;
 uniform int has_normal_map;
 
-#define LIGHT_COUNT 2
+#define LIGHT_COUNT 4
 
 uniform vec3 light_positions[LIGHT_COUNT];
 uniform vec3 light_colors[LIGHT_COUNT];
