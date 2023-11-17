@@ -1,6 +1,9 @@
 NAME = zig-out/bin/scop
+SCOP = scop
 
 all: $(NAME)
+
+$(SCOP): all
 
 $(NAME):
 	zig build -Doptimize=ReleaseSafe
