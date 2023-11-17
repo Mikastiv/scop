@@ -26,8 +26,8 @@ var last_mouse_pos = math.Vec2{ default_window_width / 2.0, default_window_heigh
 const sensitivity = 0.075;
 var fov: f32 = 45.0;
 
-const model_rotation_speed = 2.0;
-var model_angles = math.Vec3{ 0, 0, 0 };
+const model_move_speed = 2.0;
+var model_position = math.Vec3{ 0, 0, 0 };
 
 var current_mode = DrawMode.triangles;
 
@@ -143,15 +143,12 @@ fn processInput(window: glfw.Window, cam: *Camera, dt: f32) void {
     if (window.getKey(.a) == .press) cam.pos = math.vec.sub(cam.pos, d_right);
     if (window.getKey(.space) == .press) cam.pos[1] += speed;
     if (window.getKey(.left_shift) == .press) cam.pos[1] -= speed;
-    if (window.getKey(.r) == .press) model_angles[0] -= model_rotation_speed * dt;
-    if (window.getKey(.t) == .press) model_angles[0] += model_rotation_speed * dt;
-    if (window.getKey(.f) == .press) model_angles[1] -= model_rotation_speed * dt;
-    if (window.getKey(.g) == .press) model_angles[1] += model_rotation_speed * dt;
-    if (window.getKey(.v) == .press) model_angles[2] -= model_rotation_speed * dt;
-    if (window.getKey(.b) == .press) model_angles[2] += model_rotation_speed * dt;
-    model_angles[0] = adjustAngle(model_angles[0]);
-    model_angles[1] = adjustAngle(model_angles[1]);
-    model_angles[2] = adjustAngle(model_angles[2]);
+    if (window.getKey(.r) == .press) model_position[0] -= model_move_speed * dt;
+    if (window.getKey(.t) == .press) model_position[0] += model_move_speed * dt;
+    if (window.getKey(.f) == .press) model_position[1] -= model_move_speed * dt;
+    if (window.getKey(.g) == .press) model_position[1] += model_move_speed * dt;
+    if (window.getKey(.v) == .press) model_position[2] -= model_move_speed * dt;
+    if (window.getKey(.b) == .press) model_position[2] += model_move_speed * dt;
 }
 
 pub fn main() !u8 {
@@ -255,10 +252,14 @@ pub fn main() !u8 {
     };
 
     var last_frame: f64 = 0;
+    var angle: f32 = 0;
     while (!window.shouldClose()) {
         const now = glfw.getTime();
         const delta_time = @as(f32, @floatCast(now - last_frame));
         last_frame = glfw.getTime();
+
+        angle += delta_time;
+        if (angle > std.math.tau) angle -= std.math.tau;
 
         processInput(window, &camera, delta_time);
 
@@ -288,10 +289,9 @@ pub fn main() !u8 {
         }
 
         var model = math.mat.identity(math.Mat4);
+        model = math.mat.translate(&model, model_position);
         model = math.mat.scaleScalar(&model, 0.75);
-        model = math.mat.rotate(&model, model_angles[0], .{ 1, 0, 0 });
-        model = math.mat.rotate(&model, model_angles[1], .{ 0, 1, 0 });
-        model = math.mat.rotate(&model, model_angles[2], .{ 0, 0, 1 });
+        model = math.mat.rotate(&model, angle, .{ 0, 1, 0 });
 
         switch (current_mode) {
             .triangles => {
