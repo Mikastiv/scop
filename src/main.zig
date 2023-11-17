@@ -210,6 +210,20 @@ pub fn main() !u8 {
         return 1;
     }
 
+    var points = try std.ArrayList(math.Vec3).initCapacity(allocator, vertex_count);
+    defer points.deinit();
+    for (model3d.meshes.items) |mesh| {
+        for (mesh.vertices.items) |vertex| {
+            try points.append(vertex.pos);
+        }
+    }
+    const smallest_sphere = math.smallestEnclosingSphere(points.items);
+    for (model3d.meshes.items) |*mesh| {
+        for (mesh.vertices.items) |*vertex| {
+            vertex.pos = math.vec.sub(vertex.pos, smallest_sphere.center);
+        }
+    }
+
     try model3d.loadOnGpu();
 
     var debug_plane = try DebugPlane.init(allocator, "res/backpack/diffuse.bmp");

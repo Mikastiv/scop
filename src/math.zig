@@ -325,7 +325,7 @@ pub const mat = struct {
         return mat.mul(r, t);
     }
 
-    pub inline fn determinant(m: anytype) f32 {
+    pub fn determinant(m: anytype) f32 {
         return switch (@TypeOf(m)) {
             Mat2 => m[0][0] * m[1][1] - m[1][0] * m[0][1],
             Mat3 => {
@@ -376,28 +376,118 @@ pub const mat = struct {
     }
 };
 
-// pub const Sphere = struct {
-//     const Self = @This();
+pub const Sphere = struct {
+    const Self = @This();
 
-//     center: Vec3,
-//     radius: f32,
+    center: Vec3,
+    radius: f32,
 
-//     pub fn contains(self: Self, point: Vec3) bool {
-//         return vec.distance(self.center, point) <= self.radius;
-//     }
+    pub fn contains(self: Self, point: Vec3) bool {
+        const tolerance = 0.0001;
+        return vec.distance(self.center, point) <= self.radius + tolerance;
+    }
 
-//     pub fn createCircumsphere(a: Vec3, b: Vec3, c: Vec3, d: Vec3) Self {
-//         const a2 = vec.length2(a);
-//         _ = a2;
-//         const b2 = vec.length2(b);
-//         _ = b2;
-//         const c2 = vec.length2(c);
-//         _ = c2;
-//         const d2 = vec.length2(d);
-//         _ = d2;
-//     }
-// };
+    pub fn circumsphere(a: Vec3, b: Vec3, c: Vec3, d: Vec3) Self {
+        const a2 = vec.length2(a);
+        const b2 = vec.length2(b);
+        const c2 = vec.length2(c);
+        const d2 = vec.length2(d);
 
-// pub fn smallestEnclosingSphere(points: []Vec3) Sphere {
-//     _ = points;
-// }
+        const detInv = 1.0 / mat.determinant(Mat4{
+            .{ a[0], a[1], a[2], 1 },
+            .{ b[0], b[1], b[2], 1 },
+            .{ c[0], c[1], c[2], 1 },
+            .{ d[0], d[1], d[2], 1 },
+        });
+
+        const x = mat.determinant(Mat4{
+            .{ a2, a[1], a[2], 1 },
+            .{ b2, b[1], b[2], 1 },
+            .{ c2, c[1], c[2], 1 },
+            .{ d2, d[1], d[2], 1 },
+        });
+        const y = mat.determinant(Mat4{
+            .{ a[0], a2, a[2], 1 },
+            .{ b[0], b2, b[2], 1 },
+            .{ c[0], c2, c[2], 1 },
+            .{ d[0], d2, d[2], 1 },
+        });
+        const z = mat.determinant(Mat4{
+            .{ a[0], a[1], a2, 1 },
+            .{ b[0], b[1], b2, 1 },
+            .{ c[0], c[1], c2, 1 },
+            .{ d[0], d[1], d2, 1 },
+        });
+
+        const center = vec.mul(Vec3{ x, y, z }, detInv * 0.5);
+
+        return .{
+            .center = center,
+            .radius = vec.distance(center, a),
+        };
+    }
+
+    pub fn circumsphereTriangle(a: Vec3, b: Vec3, c: Vec3) Sphere {
+        const ca = vec.sub(c, a);
+        const ba = vec.sub(b, a);
+        const crs = vec.cross(ba, ca);
+
+        const t0 = vec.mul(vec.cross(crs, ba), vec.length2(ca));
+        const t1 = vec.mul(vec.cross(ca, crs), vec.length2(ba));
+        const x = vec.add(t0, t1);
+
+        const rvec = vec.div(x, 2.0 * vec.length2(crs));
+
+        return .{
+            .center = vec.add(a, rvec),
+            .radius = vec.length(rvec),
+        };
+    }
+
+    pub fn fromDiameter(a: Vec3, b: Vec3) Sphere {
+        const center = vec.mul(vec.add(a, b), 0.5);
+        return .{
+            .center = center,
+            .radius = vec.distance(center, a),
+        };
+    }
+};
+
+fn smallestEnclosingSphereImpl(points: []Vec3, end: usize, pin1: ?Vec3, pin2: ?Vec3, pin3: ?Vec3) Sphere {
+    var sphere: Sphere = undefined;
+
+    var current: usize = 0;
+    if (pin1 != null and pin2 != null and pin3 != null) {
+        sphere = Sphere.circumsphereTriangle(pin1.?, pin2.?, pin3.?);
+    } else if (pin1 != null and pin2 != null) {
+        sphere = Sphere.fromDiameter(pin1.?, pin2.?);
+    } else if (pin1 != null) {
+        sphere = Sphere.fromDiameter(points[current], pin1.?);
+        current += 1;
+    } else {
+        sphere = Sphere.fromDiameter(points[current], points[current + 1]);
+        current += 2;
+    }
+
+    while (current < end) {
+        if (!sphere.contains(points[current])) {
+            if (pin1 != null and pin2 != null and pin3 != null) {
+                sphere = Sphere.circumsphere(pin1.?, pin2.?, pin3.?, points[current]);
+            } else if (pin1 != null and pin2 != null) {
+                sphere = smallestEnclosingSphereImpl(points, current, pin1, pin2, points[current]);
+            } else if (pin1 != null) {
+                sphere = smallestEnclosingSphereImpl(points, current, pin1, points[current], null);
+            } else {
+                sphere = smallestEnclosingSphereImpl(points, current, points[current], null, null);
+            }
+        }
+        current += 1;
+    }
+
+    return sphere;
+}
+
+pub fn smallestEnclosingSphere(points: []Vec3) Sphere {
+    std.debug.assert(points.len > 1);
+    return smallestEnclosingSphereImpl(points, points.len - 1, null, null, null);
+}
