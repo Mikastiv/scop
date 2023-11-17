@@ -195,7 +195,6 @@ pub fn main() !u8 {
     pony_texture.loadOnGpu();
 
     var model3d = try obj.parseObj(allocator, args[1]);
-    try model3d.loadOnGpu();
 
     const mesh_count = model3d.meshes.items.len;
     var vertex_count: usize = 0;
@@ -205,6 +204,13 @@ pub fn main() !u8 {
         index_count += mesh.indices.items.len;
     }
     std.log.info("meshes: {d}, vertices: {d}, indices: {d}\n", .{ mesh_count, vertex_count, index_count });
+
+    if (vertex_count < 3) {
+        std.log.err("invalid model", .{});
+        return 1;
+    }
+
+    try model3d.loadOnGpu();
 
     var debug_plane = try DebugPlane.init(allocator, "res/backpack/diffuse.bmp");
     defer debug_plane.deinit();
