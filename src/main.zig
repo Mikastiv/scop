@@ -33,7 +33,7 @@ var current_mode = DrawMode.triangles;
 
 const DrawMode = enum(u8) {
     triangles,
-    // texture,
+    texture,
     pbr,
     count,
 
@@ -163,9 +163,7 @@ pub fn main() !u8 {
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
 
-    if (!try validateArgs(args)) {
-        return 1;
-    }
+    if (!try validateArgs(args)) return 1;
 
     if (!glfw.init(.{})) {
         std.log.err("failed to initialize GLFW: {?s}", .{glfw.getErrorString()});
@@ -188,6 +186,13 @@ pub fn main() !u8 {
     defer shader_debug.deinit();
     const shader_tri_colored = try Shader.init(allocator, "shaders/tri_color.vert", "shaders/tri_color.frag");
     defer shader_tri_colored.deinit();
+    const shader_texture = try Shader.init(allocator, "shaders/texture.vert", "shaders/texture.frag");
+    defer shader_texture.deinit();
+
+    const pony_image = try bmp.load(allocator, "res/pony.bmp", false);
+    defer pony_image.deinit();
+    var pony_texture = Texture{ .image = pony_image };
+    pony_texture.loadOnGpu();
 
     var model3d = try obj.parseObj(allocator, args[1]);
     try model3d.loadOnGpu();
@@ -219,6 +224,7 @@ pub fn main() !u8 {
     shader_pbr.setUniformBlock("matrices", 0);
     shader_light.setUniformBlock("matrices", 0);
     shader_tri_colored.setUniformBlock("matrices", 0);
+    shader_texture.setUniformBlock("matrices", 0);
 
     const light_color = math.Vec3{ 300, 300, 300 };
     const lights = [_]PointLight{
@@ -273,7 +279,13 @@ pub fn main() !u8 {
                 shader_tri_colored.setUniform(math.Mat4, "model", model);
                 model3d.draw(shader_tri_colored);
             },
-            // .texture => {},
+            .texture => {
+                shader_texture.use();
+                shader_texture.setUniform(math.Mat4, "model", model);
+                pony_texture.bind(c.GL_TEXTURE5);
+                shader_texture.setUniform(i32, "color_texture", 5);
+                model3d.draw(shader_texture);
+            },
             .pbr => {
                 shader_pbr.use();
                 for (lights, 0..) |l, i| {

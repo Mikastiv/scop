@@ -6,8 +6,8 @@ in VS_OUT {
 
 layout(location = 0) out vec4 out_color;
 
-uniform sampler2D albedo_map;
+uniform sampler2D color_texture;
 
 void main() {
-    out_color = texture(albedo_map, fs_in.tex_coords);
+    out_color = texture(color_texture, fs_in.tex_coords);
 }
