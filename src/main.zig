@@ -318,7 +318,6 @@ pub fn main() !u8 {
 
                 shader_pbr.setUniform(math.Vec3, "camera_position", camera.pos);
                 shader_pbr.setUniform(math.Mat4, "model", model);
-                // transpose, inverse
                 model3d.draw(shader_pbr);
             },
             else => unreachable,
