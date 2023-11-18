@@ -325,48 +325,30 @@ pub const mat = struct {
         return mat.mul(r, t);
     }
 
-    pub fn determinant(m: anytype) f32 {
+    pub inline fn determinant(m: anytype) f32 {
         return switch (@TypeOf(m)) {
             Mat2 => m[0][0] * m[1][1] - m[1][0] * m[0][1],
-            Mat3 => {
-                const cofactor0 = determinant(Mat2{
-                    .{ m[1][1], m[2][1] },
-                    .{ m[1][2], m[2][2] },
-                });
-                const cofactor1 = determinant(Mat2{
-                    .{ m[0][1], m[2][1] },
-                    .{ m[0][2], m[2][2] },
-                });
-                const cofactor2 = determinant(Mat2{
-                    .{ m[0][1], m[1][1] },
-                    .{ m[0][2], m[1][2] },
-                });
+            Mat3 => blk: {
+                const cofactor0 = m[1][1] * m[2][2] - m[2][1] * m[1][2];
+                const cofactor1 = m[0][1] * m[2][2] - m[2][1] * m[0][2];
+                const cofactor2 = m[0][1] * m[1][2] - m[1][1] * m[0][2];
 
-                return m[0][0] * cofactor0 - m[1][0] * cofactor1 + m[2][0] * cofactor2;
+                break :blk m[0][0] * cofactor0 - m[1][0] * cofactor1 + m[2][0] * cofactor2;
             },
-            Mat4 => {
-                const cofactor0 = determinant(Mat3{
-                    .{ m[1][1], m[2][1], m[3][1] },
-                    .{ m[1][2], m[2][2], m[3][2] },
-                    .{ m[1][3], m[2][3], m[3][3] },
-                });
-                const cofactor1 = determinant(Mat3{
-                    .{ m[0][1], m[2][1], m[3][1] },
-                    .{ m[0][2], m[2][2], m[3][2] },
-                    .{ m[0][3], m[2][3], m[3][3] },
-                });
-                const cofactor2 = determinant(Mat3{
-                    .{ m[0][1], m[1][1], m[3][1] },
-                    .{ m[0][2], m[1][2], m[3][2] },
-                    .{ m[0][3], m[1][3], m[3][3] },
-                });
-                const cofactor3 = determinant(Mat3{
-                    .{ m[0][1], m[1][1], m[2][1] },
-                    .{ m[0][2], m[1][2], m[2][2] },
-                    .{ m[0][3], m[1][3], m[2][3] },
-                });
+            Mat4 => blk: {
+                const subfactor0 = m[2][2] * m[3][3] - m[3][2] * m[2][3];
+                const subfactor1 = m[1][2] * m[3][3] - m[3][2] * m[1][3];
+                const subfactor2 = m[1][2] * m[2][3] - m[2][2] * m[1][3];
+                const subfactor3 = m[0][2] * m[3][3] - m[3][2] * m[0][3];
+                const subfactor4 = m[0][2] * m[2][3] - m[2][2] * m[0][3];
+                const subfactor5 = m[0][2] * m[1][3] - m[1][2] * m[0][3];
 
-                return m[0][0] * cofactor0 -
+                const cofactor0 = m[1][1] * subfactor0 - m[2][1] * subfactor1 + m[3][1] * subfactor2;
+                const cofactor1 = m[0][1] * subfactor0 - m[2][1] * subfactor3 + m[3][1] * subfactor4;
+                const cofactor2 = m[0][1] * subfactor1 - m[1][1] * subfactor3 + m[3][1] * subfactor5;
+                const cofactor3 = m[0][1] * subfactor2 - m[1][1] * subfactor4 + m[2][1] * subfactor5;
+
+                break :blk m[0][0] * cofactor0 -
                     m[1][0] * cofactor1 +
                     m[2][0] * cofactor2 -
                     m[3][0] * cofactor3;
@@ -489,5 +471,5 @@ fn smallestEnclosingSphereImpl(points: []Vec3, end: usize, pin1: ?Vec3, pin2: ?V
 
 pub fn smallestEnclosingSphere(points: []Vec3) Sphere {
     std.debug.assert(points.len > 1);
-    return smallestEnclosingSphereImpl(points, points.len - 1, null, null, null);
+    return smallestEnclosingSphereImpl(points, points.len, null, null, null);
 }
