@@ -13,8 +13,8 @@ const bmp = @import("bmp.zig");
 const DebugPlane = @import("DebugPlane.zig");
 const Texture = @import("Texture.zig");
 
-const default_window_width = 800;
-const default_window_height = 600;
+const default_window_width = 1920;
+const default_window_height = 1280;
 
 var window_width: u32 = default_window_width;
 var window_height: u32 = default_window_height;
@@ -30,6 +30,8 @@ const model_move_speed = 2.0;
 var model_position = math.Vec3{ 0, 0, 0 };
 
 var current_mode = DrawMode.triangles;
+
+var capture_mouse = true;
 
 const DrawMode = enum(u8) {
     triangles,
@@ -61,6 +63,8 @@ fn keyboardCallback(window: glfw.Window, key: glfw.Key, _: i32, action: glfw.Act
 }
 
 fn mouseCallback(_: glfw.Window, xpos: f64, ypos: f64) void {
+    if (!capture_mouse) return;
+
     const xpos_f32: f32 = @floatCast(xpos);
     const ypos_f32: f32 = @floatCast(ypos);
 
@@ -149,6 +153,14 @@ fn processInput(window: glfw.Window, cam: *Camera, dt: f32) void {
     if (window.getKey(.g) == .press) model_position[1] += model_move_speed * dt;
     if (window.getKey(.v) == .press) model_position[2] -= model_move_speed * dt;
     if (window.getKey(.b) == .press) model_position[2] += model_move_speed * dt;
+    if (window.getKey(.one) == .press) {
+        window.setInputMode(.cursor, .normal);
+        capture_mouse = false;
+    }
+    if (window.getKey(.two) == .press) {
+        window.setInputMode(.cursor, .disabled);
+        capture_mouse = true;
+    }
 }
 
 pub fn main() !u8 {
